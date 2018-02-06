@@ -1,0 +1,494 @@
+;Implementation of Z80 CPU module for Atalan programming language
+;(c) 2012 Rudla Kudla
+;Licensed under the MIT license: http://www.opensource.org/licenses/mit-license.php
+
+;This module generates code, that can be compiled with Pasmo assembler.
+
+
+platform:scope
+ 
+type
+	byte:0..255
+	card:0..65535
+	int:-32768..32767
+	sbyte:-128..127
+	byte1:byte or sbyte
+	byte2:card or int
+
+rule src_end  = "   end start"
+	
+rule alloc %A:byte1                          = "   DS 1"
+rule alloc %A:card                           = "   DS 2"
+;rule alloc %A:-128..127                     = "   DS 1"
+rule alloc %A:array(%B:0..255, %C:0..255) of byte1   = "   DS %A.size"
+
+CPU:scope =
+	a,b,c,d,e,h,l:0..255
+	bc@(b,c):0..65535
+	de@(d,e):0..65535
+	hl@(h,l):0..65535
+	sp:0..65535
+	ix,iy:0..65535
+
+	s,z,hc,v,n,cr:0..1				;hc = half carry, cr = carry
+
+	hnc@(hc,n,cr)	
+	szhvn@(s,z,hc,v,n)
+	szhvnc@(s,z,hc,v,n,cr)
+	nc@(n,c)
+
+	cra@(cr,a)
+			
+	type memory:array(0..$ffff) of 0..255
+
+	r@(a,b,c,d,e,h,l)
+	rr@(hl,bc,de,sp)
+	
+	in out void:0..255  ;This is special variable used to implement cp instructions.
+	
+	ld: macro o, p = instr let o, p
+	cp: macro o = instr sub void, a, o
+
+	mul8:proc m1@h m2@e @de @b -> res@hl 
+
+	b1arr2D:type = array(byte,byte) of byte1	
+	b1arr:type = array(card) of byte1
+	u8:type = 0..255
+	u16:type = 0..65535	
+	s8:type = -128..127
+
+type
+	byte2a:byte2 or adr
+	
+;rule decl %A:array(%B:byte, %C:byte) of %D:byte1 =
+;	mul %Z, %B.count, %C.count
+;	decl %A.data: array %Z of %D
+;	decl %A.idx: const array %C of adr of array %B of %D
+	;TODO: We may recognize by constness of the array, that this is an index, that we want to generate
+	;TODO: Declare, that the %A.idx is index
+	
+rule %A:byte1 = %B:byte1 = instr
+	let a, %B
+	let %A, a
+
+rule @%A = %B:byte1 = instr
+	let hl, %A
+	let a, %B
+	let @hl, a
+	
+;### ADD
+
+rule %A:byte = %B:byte + 1 = instr
+	ld a, %A
+	add a, a, 1
+	ld %B, a
+
+rule %A:byte = %B:byte + %C:byte = instr
+	let a, %C
+	let b, a
+	let a, %B
+	add	a, a, b
+	let %A, a
+
+rule %A:s8 = %B:s8 + %C:s8 = instr
+	let a, %C
+	let b, a
+	let a, %B
+	add	a, a, b
+	let %A, a
+
+rule %A:card = %B:card + %C:byte = instr
+	ld hl, %B
+	ld a, %C
+	ld c, a
+	ld b, 0
+	add hl, hl, bc
+	ld %A, hl
+
+rule %A:card = %B:card + @%C:adr of byte = instr
+	ld hl, %C
+	ld a, %B$0
+	add a, a, @hl
+	ld %A$0, a
+	ld a, %B$1
+	add cra, a, 0+cr
+	ld %A$1, a
+	
+rule %A:byte2a = %A + 1 = instr
+	let_adr hl, %A
+	add @hl, @hl, 1
+		 
+;### SUB
+rule %A:byte = %B:byte - const %C:byte = instr
+	let a, %B
+	sub	a, a, %C
+	let %A, a
+
+rule %A:byte = %B:byte - %C:byte = instr
+	let a, %C
+	let b, a
+	let a, %B
+	sub	a, a, b
+	let %A, a
+
+rule %A:s8 = %B:s8 - %C:s8 = instr
+	let a, %C
+	let b, a
+	let a, %B
+	sub	a, a, b
+	let %A, a
+
+;Multiplication
+
+rule %A:byte = %B:0..127 * 2 = instr
+	ld a, %B
+	mul a, a, 2
+	ld %A, a
+
+rule %A:byte = %B:0..63 * 4 = instr
+	ld a, %B
+	mul a, a, 2
+	mul a, a, 2
+	ld %A, a
+
+rule %A:byte = %B:0..31 * 8 = instr
+	ld a, %B
+	mul a, a, 2
+	mul a, a, 2
+	mul a, a, 2
+	ld %A, a
+
+rule %A:byte = %B:0..15 * 16 = instr
+	ld a, %B
+	mul a, a, 2
+	mul a, a, 2
+	mul a, a, 2
+	mul a, a, 2
+	ld %A, a
+
+rule %A:byte = %B:0..7 * 32 = instr
+	ld a, %B
+	mul a, a, 2
+	mul a, a, 2
+	mul a, a, 2
+	mul a, a, 2
+	mul a, a, 2
+	ld %A, a
+
+rule %A:byte = %B:0..3 * 64 = instr
+	ld a, %B
+	mul a, a, 2
+	mul a, a, 2
+	mul a, a, 2
+	mul a, a, 2
+	mul a, a, 2
+	mul a, a, 2
+	ld %A, a
+
+rule %A:byte = %B:0..1 * 128 = instr
+	ld a, %B
+	mul a, a, 2
+	mul a, a, 2
+	mul a, a, 2
+	mul a, a, 2
+	mul a, a, 2
+	mul a, a, 2
+	mul a, a, 2
+	ld %A, a
+	 
+rule %A:byte = %B:byte * %C:byte = instr
+	ld a, %B
+	ld h, a
+	ld a, %C
+	ld e, a
+	call cpu.mul8
+	ld a, l
+	ld %A, a
+
+;Bit operations
+
+rule %A:byte = %B:byte and const %C:byte = instr
+	let a, %B
+	and	a, a, %C
+	let %A, a
+
+rule %A:byte = %B:byte and %C:byte = instr
+	let a, %C
+	let b, a
+	let a, %B
+	and	a, a, b
+	let %A, a
+
+rule %A:byte = %B:byte or const %C:byte = instr
+	let a, %B
+	or	a, a, %C
+	let %A, a
+
+rule %A:byte = %B:byte or %C:byte = instr
+	let a, %C
+	let b, a
+	let a, %B
+	or	a, a, b
+	let %A, a
+
+rule %A:byte = %B:byte bitxor const %C:byte = instr
+	let a, %B
+	xor	a, a, %C
+	let %A, a
+
+rule %A:byte = %B:byte bitxor %C:byte = instr
+	let a, %C
+	let b, a
+	let a, %B
+	xor	a, a, b
+	let %A, a
+
+
+;Jumps
+
+rule if %A:byte1 = const %B:byte1 goto %C = instr
+	ld a, %A
+	cp %B
+	if z = 1 goto %C
+
+rule if %A:byte1 <> const %B:byte1 goto %C = instr
+	ld a, %A
+	cp %B
+	if z = 0 goto %C
+
+;### Compare 2B
+
+rule if %A:byte2 = const %B:byte2 goto %L = instr
+	ifne _loc, %A$0, %B$0
+	ifeq %L, %A$1, %B$1	
+	label _loc
+
+
+;############ b
+
+rule %A:byte2 = %B = instr
+	ld hl, %B
+	ld %A, hl 
+
+
+;############ 1D array (1 byte index)
+
+rule alloc %A:array(%C:0..65535) of byte1    = "   DS %B"
+
+rule %A = %B:b1arr(const %C) = instr
+	ld a, %B$%C
+	ld %A, a  
+
+rule let_adr hl, %A:b1arr(%B:card) = instr
+	let_adr hl, %A
+	ld de, %B
+	add hl, hl, de
+
+rule let_adr %A:adr, %B:b1arr = instr
+	let_adr hl, %B
+	let %A, hl
+
+rule let_adr %A:adr, %B:b1arr(%C:card) = instr
+	let_adr hl, %B(%C)
+	let %A, hl
+	  	
+rule %A:b1arr(%B:card) = %C:byte1 = instr
+	let_adr hl, %A(%B)
+	ld a, %C
+	ld @hl, a 
+
+rule %A:byte1 = %B:b1arr(%C:card) = instr
+	let_adr hl, %B(%C)
+	ld a, @hl
+	ld %A, a
+
+;---- 1 byte index
+rule let_adr hl, %A:b1arr(%B:byte) = instr
+	let_adr hl, %A
+	ld d, 0
+	let a, %B
+	let e, a
+	add hl, hl, de
+
+rule %A:b1arr(%B:byte) = %C:byte1 = instr
+	let_adr hl, %A(%B)
+	ld a, %C
+	ld @hl, a 
+
+rule %A:byte1 = %B:b1arr(%C:byte) = instr
+	let_adr hl, %B(%C)
+	ld a, @hl
+	ld %A, a
+	 	
+;############ 2D array
+
+rule arrindex %A:array(%B:byte, %C:byte) of byte1 = "%A__idx:" "   REPT %C.count, N" "   DW %A + N * %B.count" "   ENDM"
+
+rule let_adr hl, %A:b1arr2D(%B:byte, %C:byte) = instr
+	lo  hl, %A
+	let de, %C
+	add hl, hl, de
+	add hl, hl, de		;hl = index + 2*%C
+	let a, @hl
+	add hl, hl, 1
+	let h, @hl
+	let l, a            ;hl = (hl)
+	let de, %B
+	add hl, hl, de      ;hl = hl + %C
+
+rule let %A:b1arr2D(%B:byte, %C:byte), %D:byte = instr
+	let_adr hl, %A(%B, %C)
+	ld a, %D
+	ld @hl, a 
+
+rule let %D:byte, %A:b1arr2D(%B:byte, %C:byte) = instr
+	let_adr hl, %A(%B, %C)
+	ld a, @hl 
+	ld %D, a
+
+ 	
+;Printing.
+
+;Character printing routines to be defined by platform.
+
+system.printchar:proc chr@cpu.a
+
+;Following routines are defined in z80.asm
+
+
+system.print_out:proc @cpu.a @cpu.hl @cpu.b @cpu.de @cpu.c
+
+system.print_scr:macro = instr
+	call system.print_out
+
+rule nop #4 = "   nop"
+
+;LD byte
+rule %A@r = const %B:byte1 #7 = "   ld %A, %B"
+rule %A@r = %B@r           #4 = "   ld %A, %B"
+
+rule let %A:byte1, a        #13 = "   ld (%A), a"
+rule let %A$const %B, a #13 = "   ld (%A+%B), a"
+
+rule let a, const %B:byte1  #7  = "   ld a, %B"			;We must define this explicitly for A, to prevent using rule on next line
+rule let a, %B:byte1        #13 = "   ld a, (%B)"
+
+rule let %A@rr, const %B:card  #10 = "   ld %A, %B"
+rule let %A@r, @hl             #7  = "   ld %A, (hl)"
+rule let @hl, %A@r             #7  = "   ld (hl), %A"
+rule let a, @bc                 #7  = "   ld a, (bc)"
+rule let a, @de                 #7  = "   ld a, (de)"
+rule let @bc, a                 #7  = "   ld (bc), a"
+rule let @de, a                 #7  = "   ld (de), a"
+
+rule let a, %B$%C        #13 = "   ld a, (%B+%C)"
+
+
+;LD array 1B
+
+rule let %A@r, %B$const %C     #7   = "   ld %A, (%B-%B.index.min+%C)"
+
+;LD card
+rule let hl, %A:byte2a           #20 = "   ld hl, (%A)"
+rule let %A:byte2a, hl           #20 = "   ld (%A), hl"
+
+rule let_adr %A@rr, %B          #10 = "   ld %A, %B"
+
+;ADD, INC
+rule %A@r = %A + 1          @szhvn  #4 = "   inc %A"
+rule a = a + const %A:byte1 @szhvnc #7 = "   add a, %A"    
+rule a = a + %A@r           @szhvnc #4 = "   add a, %A"
+rule a = a + @hl            @szhvnc #7 = "   add a, (hl)"
+rule hl = hl + %A@rr        @nc    #11 = "   add hl, %A"
+rule %A@rr = %A + 1         	   #6  = "   inc %A"
+rule @hl = @hl + 1          @szhvn #7  = "   inc (hl)"
+
+;ADC
+
+rule cra = a + (const %A:byte1 + cr) @szhvnc #7 = "   adc a, %A"    
+rule cra = a + (%A@r + cr)      @szhvnc #4 = "   adc a, %A"
+rule cra = a + (@hl + cr)       @szhvnc #7 = "   adc a, (hl)"
+
+
+;SUB, DEC
+rule %A@r = %A - 1          @szhvn  #4 = "   dec %A"
+rule a = a - const %A:byte1 @szhvnc #7 = "   sub %A"    
+rule a = a - %A@r           @szhvnc #4 = "   sub %A"
+rule a = a - @hl            @szhvnc #7 = "   sub (hl)"
+rule @hl = @hl - 1          @szhvn #7  = "   dec (hl)"
+rule %A@rr = %A - 1         	   #6  = "   dec %A"
+
+;CP
+rule void = a - const %A:byte1 @szhvnc #7 = "   cp %A"    
+rule void = a - %A@r           @szhvnc #4 = "   cp %A"
+
+;AND
+rule a = a and const %A:byte1 @szhvnc #7 = "   and %A"    
+rule a = a and %A@r           @szhvnc #4 = "   and %A"
+
+;OR
+rule a = a or const %A:byte1 @szhvnc #7 = "   or %A"    
+rule a = a or %A@r           @szhvnc #4 = "   or %A"
+
+;XOR
+rule a = a bitxor const %A:byte1 @szhvnc #7 = "   xor %A"    
+rule a = a bitxor %A@r           @szhvnc #4 = "   xor %A"
+
+;SHIFT
+
+;rule a = a * 2 @hnc #8  = "   rlca"
+rule %A@r = %A * 2 @szhvnc #8  = "   sla %r"
+rule @hl = @hl * 2 @szhvnc #12 = "   sla (hl)"
+  
+rule %A@r = %A / 2 @szhvnc #8  = "   sra %r" 
+rule @hl = @hl / 2 @szhvnc #12 = "   sra (hl)"
+
+;Condtional jumps
+
+rule if z = 1 goto %A #12   = "   jr z, %A"
+rule if z = 0 goto %A #12   = "   jr nz, %A"
+rule if s = 1 goto %A #12   = "   jr s, %A"
+rule if s = 0 goto %A #12   = "   jr ns, %A"
+rule if cr = 1 goto %A #12   = "   jr c, %A"
+rule if cr = 0 goto %A #12   = "   jr nc, %A"
+
+rule goto %A   #10 = "   jp %A"
+rule label %A      = "%A:"
+
+rule proc %A:proc     = "%A  PROC"
+rule endproc %A:proc  = "   ENDP"
+
+rule call %A:proc() #17 = "   call %A"  
+rule return #10 = "   ret"
+
+rule str_arg %A:string  = "   DB %A.size,'%A'"				; TODO: Use var_arg %A:const string
+rule var_arg %A:u8      = "   DB 129" "   DW %A"
+rule var_arg %A:u16     = "   DB 130" "   DW %A"
+rule var_arg %A:s8      = "   DB 129+32"    "   DW %A"
+
+rule data %A:string = "   DB %'A"
+rule data %A    = "   DB %A"
+
+rule vardef %A,%B   = "%A EQU %B"
+
+rule line      = ";### %0(%1) %2"
+rule include %A = "   INCLUDE '%A'"
+
+
+;Load array index into HL
+
+rule lo %A@rr, %B  #10 = "   ld %A, %B__idx"
+
+;Support for ASSERT "expected" command.
+
+;system.print_assert:macro = instr call system.assert_print_asm
+
+rule file %A     = "   INCBIN '%A'"
+rule org  %A     = "   ORG %A"
+
+system.assert:macro = instr call system.print_out
+
+rule assert_begin = ";assert begin"
+rule assert_end   = ";assert end"
+
+rule assert       = "   halt"

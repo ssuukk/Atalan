@@ -1,0 +1,365 @@
+﻿;********************************
+;ATALAN ATARI Platform definition
+;********************************
+
+use "m6502"
+
+;It is possible to use the ORG parameter to define starting address of the programm.
+param ORG:0..$ffff = $2000 
+
+;Set the position of print buffer to address $600.
+_stdbuf@$600
+_putchr_proc_adr@$653  ;+$654 
+
+BIN_EXTENSION: "xex"
+type VARHEAP:128..255() or 1536..1791  
+
+in out timer@20:byte
+
+;***********************
+;Random number generator
+;***********************
+;
+;This read register provides random numbers from 0 to 255.
+;To get smaller ranges, use mod.
+;
+;Correct method for getting random number from min..max-1 is 
+;   min + RANDOM * max / 256
+;
+
+in RANDOM@$D20A:0..255
+
+;***********************
+;Fonts
+;***********************
+
+;Font is 1024 bytes (128 chars, 8 bytes per character) aligned on one-kb boundary
+;Font will be usually defined using const array and file initializer.
+;To use such font use set'font procedure.
+
+;:::
+;const myfont:font = file "file.fnt"
+;set'font myfont	    
+;:::
+
+type font@1024:array(1023)
+
+out CHBAS@756:byte	  ;CHBAS register contains hi byte of font address              
+out CHBASE@$D409:byte ;Hardware register for font base
+
+set'font:macro x:font =
+	chbas = hi x
+
+;*********************
+;Screen editor
+;*********************
+LMARGN@82:byte
+RMARGN@83:byte
+
+;Screen position
+
+in VCOUNT@$D40B:0..155		;for PAL machine
+out WSYNC@$D40A:byte
+
+;Wait for drawn line.
+;As it is not important, what value gets written to WSYNC register, we write register A,
+;without first initializing it.
+
+wait'line:macro =
+  WSYNC = cpu.void
+
+;Joysticks & paddles
+
+type button'state:enum (pressed : 0, not'pressed : 1, true: pressed)
+in STRIG@644:array(0..3) of button'state		;Set to 1 when joystick button is not pushed, 0 if pushed
+
+type stick'state:enum (
+	left:  11
+	right:  7
+	up:    14
+	down:  13
+	)
+
+in STICK@632:array(0..3) of stick'state
+
+; DMA
+
+type dma'type:byte (narrow_playfield: 1, playfield: 2, wide_playfield: 3, missiles: 4, players: 8, hires_sprites: 16, dl: 32, off: 0)
+out DMACTL@559:dma'type
+
+;BIT(S)  PATTERN  VALUE  RESULT
+;0,1     ------00  0     No playfield
+;        ------01  1     Narrow playfield
+;        ------10  2     Regular playfield
+;        ------11  3     Wide playfield
+;2       -----0--  0     Missiles off
+;        -----1--  4     Missiles on
+;3       ----0---  0     Players off
+;        ----1---  8     Players on
+;4       ---0----  0     Double height players
+;        ---1---- 16     Regular height players
+;5       --0-----  0     ANTIC off
+;        --1----- 32     ANTIC on
+;6,7     --------        Not used
+ 
+type color:0..255
+	Black                    :   0
+	Rust                     :  16
+	Red'orange               :  32
+	Dark'orange              :  48
+	Red                      :  64
+	Dark'lavender            :  80
+	Cobalt'blue              :  96
+	Ultramarine'blue         : 112
+	Medium'blue              : 128
+	Dark'blue                : 144
+	Blue'grey                : 166
+	Olive'green              : 176
+	Medium'green             : 192
+	Dark'green               : 208
+	Orange'green             : 224
+	Orange                   : 240
+	White                    : 15
+	
+;Colors
+
+in out COLOR0@$02C4:array(5) of color
+out COLPF@$d016:array(0..4) of color
+out COLBK@$d01a:color			;is alias for COLPF(4)
+
+;***********************
+;Player Missile Graphics
+;***********************
+
+pmg:scope = 
+	type bitmap@2048:array(0..7) of array(0..255) of byte
+	type lowresbitmap@2048:array(0..7) of array(0..127) of byte
+	type xpos:byte					; x position of player or missile 
+	out memory:bitmap		    ; default bitmap memory for PMG 
+	out base@$D407:byte			; hi byte of address of byte of player missile bitmaps
+	out prior@$D01B:byte		; pmg priority register
+	out hitclr@$D01E:byte		; set to clear collisions
+;	out sprior@$26F:byte
+	setbase:macro x:pmg.bitmap =
+	  a:adr = x
+		pmg.base = a$1
+	initbase:macro =
+		setbase pmg.memory
+	
+			
+player:scope =
+	out x@$d000:array(3) of pmg.xpos
+	out gfx@$d00d:array(4) of byte
+	out scolor@704:array(3) of color			;we must define scolor before color, otherwise if would use player.color as array type
+	out .color@$d012:array(3) of color
+	out size@$d008:array(3) of 0..3
+	bitmap@pmg.memory(4..7)						  ;:array(0..3) of array(0..255) of byte
+	in field'collision@$d004:array(3)
+	in player'collision@$d00c:array(3)
+
+;We must define the color out of the scope because it collides with color type name.
+
+missile:scope =
+	out x@$d004:array(3) of pmg.xpos
+	out size@$d00c:byte
+	out gfx@$d001:byte
+	bitmap@pmg.memory(3)				;missile bitmap is stored in this location
+	in field'collision@$d000:array(3)
+	in player'collision@$d008:array(3)
+
+;Missile color is same as player color, so setting the missile color changes 
+;associated player color.
+
+out missile.color@$d012:array(3) of color
+	
+set'pmgbase:macro x:pmg.bitmap =
+	pmg.base = hi x
+
+init'pmgbase:macro =
+	set'pmgbase pmg.memory
+
+
+out GRACTL@$d01d:0..255 (off: 0, missiles: 1, players: 2, trigger_latch: 4)
+
+out GTICTLS@$26f:byte
+out GTIACTL@$d01b:byte
+
+out SPRIOR@$26F, PRIOR@$D01B:0..255 (PLPF: 1, PFPL: 4, PL01PFPL23: 16, ONE'COLOR'MISSILES: 16, MULTICOLOR'PLAYERS: 32)
+
+;*******************************
+;Sound
+;*******************************
+
+audio:scope =
+	type frequency:0..255
+	type channel:0..3
+	type volume:0..15
+
+	out freq@$D200:array(channel) step 2 of frequency
+	out ctl@$d201:array(channel) step 2 of byte
+
+	out control@$d20f:byte   ; audio control
+	
+sound:macro
+	channel: audio.channel 
+	freq: audio.frequency 
+	dist: 0..14 = 10 
+	volume: audio.volume = 8
+=
+	audio(channel).freq = freq
+	audio(channel).ctl = dist * 16 + volume
+
+
+;Keyboard
+
+type key:enum
+	A : 63
+	B : 21
+	C : 18
+	D : 58
+	E : 42
+	F : 56
+	G : 61
+	H : 57
+	I : 13
+	J : 1
+	K : 5
+	L : 0
+	M : 37
+	N : 35
+	O : 8
+	P : 10
+	Q : 47
+	R : 40
+	S : 62
+	T : 45
+	U : 11
+	V : 16
+	W : 46
+	X : 22
+	Y : 43
+	Z : 23
+	SPACE : 33 
+	RETURN : 12
+	ESC : 28
+	TAB : 44
+	DEL : 52
+	'0' : 50
+	'1' : 31
+	'2' : 30
+	'3' : 26
+	'4' : 24
+	'5' : 29
+	'6' : 27
+	'7' : 51
+	'8' : 53
+	'9' : 48
+	'<' : 54
+	'>' : 55
+	'-' : 14
+	':' : 15
+	';' : 2
+	'+' : 6
+	'*' : 7
+	CAPS : 60
+	','  : 32
+	'.'  : 34
+	'/'  : 38
+	INV  : 39
+	F1   : 67
+	F2   : 68
+	F3   : 83
+	F4   : 84
+	HELP : 17
+	none : 255
+	false : none
+	
+in out CH@764:key  ;last pressed character
+
+wait'key:proc >k:key =
+	CH = none
+	until CH <> none
+	k = CH
+	CH = none
+
+
+;Screen char is type representing the character as displayed on atari screen.
+display_char:type = 0..255
+
+;*** DISPLAY LISTS
+
+type dl_command:0..255
+	BLANK1  : 0
+	END     : 1      
+	BLANK2  : $10
+	BLANK3  : $20
+	BLANK4  : $30
+	BLANK5  : $40
+	BLANK6  : $50
+	BLANK7  : $60
+	BLANK8  : $70
+
+	JMP     : $01
+	CHR0    : $02
+		
+	HSCROLL : $10
+	VSCROLL : $20
+	LMS     : $40
+	DLI     : $80
+	NEXT    : $41		;END + LMS
+
+out SDLSTL@$230:adr
+	
+;Display List Interrupt
+
+;dli is type of procedure used to implement the DLI.
+
+dli:type = interrupt
+out NMIEN@$D40E:byte
+out VDSLST@$200:adr of dli
+
+;There must be special rules to generate DLI routines.
+
+rule proc %A:dli = "%A .proc" "   pha" "   txa" "   pha" "   tya" "   pha"
+rule return %A:dli = "   pla" "   tay" "   pla" "   tax" "   pla" "   rti"
+rule endproc %A:dli = ".endp"
+
+on'dli:macro x:adr of dli =
+	VDSLST = x
+	NMIEN = $c0
+
+;VBI
+
+vbi:type = interrupt
+rule proc %A:vbi = "%A .proc"
+rule return %A:vbi = "   jmp $e462"
+rule endproc %A:vbi = ".endp"
+
+in out VVBLKD@$0224:adr of vbi
+
+;Macro to set up VBI.
+;We use deferred VBI vector.
+;TODO: Make it safe using system routines.
+
+on'vbi:macro x:adr of vbi =
+	VVBLKD = x
+
+;_yx:adr
+;setvbv@$E45C:proc type:enum (immediate = 6, deffered = 7) _yx:adr of vbi
+;rule let_adr _yx, %A = instr
+;	lo _y, %A
+;	hi _x, %A
+
+;DOS Vector
+DOSVEC@10:card
+
+DOS:macro =
+	goto DOSVEC
+
+rule prologue  = "   org $2e0" "   dta a(PARAM_ORG)" "   org PARAM_ORG"
+rule epilogue  = instr 
+	label __epil
+	goto __epil
+	
+rule code_end = ""
+	

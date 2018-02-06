@@ -1,0 +1,29 @@
+;Test 8-bit bit arithmetics implementation
+
+out x':0..255
+in  x@x'
+
+out y':0..255
+in  y@y'
+
+x' = %0101'0101
+y' = %0000'1111    	
+
+;Bit Or
+assert x bitor %1010'1010 = %1111'1111
+assert %1111'0000 bitor x = %1111'0101
+assert x bitor y = %0101'1111
+assert %0101'1111 = x bitor y
+
+;Bit And
+assert x bitand %1010'1010 = %0000'0000
+assert %1111'0000 bitand x = %0101'0000
+assert x bitand y = %0000'0101
+assert %0000'0101 = x bitand y
+
+;Bit Xor
+assert x bitxor %0101'1010 = %0000'1111
+assert %0101'1010 bitxor x = %0000'1111
+assert x bitxor y = %0101'1010
+assert %0101'1010 = x bitxor y
+

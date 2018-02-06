@@ -1,0 +1,62 @@
+﻿*******************
+ATALAN C64 platform
+*******************
+
+::index::
+
+************
+Introduction
+************
+
+This document describes standard ATALAN library for C64.
+
+Compiler produces PRG files that can be started using RUN command.
+Such files can be directly used with some emulators, for example VICE.
+
+*****************
+Compiling program
+*****************
+
+Use -P c64 switch to compile for NES platform.
+
+For example
+::::::
+atalan -P c64 colorflip
+::::::
+
+
+***************
+Example program
+***************
+
+Here is the most trivial program for c64.
+
+::::::::::::::::::::
+use c64
+
+in out border'color@$d020:byte
+
+loop@
+inc border'color
+goto loop
+::::::::::::::::::::::
+
+
+ 
+*******************
+Basic memory layout
+*******************
+Application is loaded from address $801. First several bytes contain BASIC line
+SYS, that will stat the code after Basic RUN command is entered. 
+
+******
+Screen
+******
+
+**********************
+Printing
+**********************
+
+String printing is not supported yet. 
+
+

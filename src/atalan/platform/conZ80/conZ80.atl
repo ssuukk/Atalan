@@ -1,0 +1,35 @@
+﻿;*************************************************
+;ATALAN Console Z80 Platform definition
+;
+; Code is just binary dump starting at 256 (100H).
+;*************************************************
+
+use z80
+
+rule prologue = "   org $100" "start"
+rule epilogue = "   DB $ED, $FE"
+rule code_end = ""      
+rule line      = ";### %0(%1) %2"
+
+; "   end start"
+
+out platform.ports@0:array(0..65535) of 0..255
+
+platform.new_line_char: 10
+
+platform.print_char:proc chr@cpu.a
+;	platform.ports(0) = chr
+
+rule let platform.ports(%A:0..65535), %B:0..255 = instr
+	let a, %A
+	let platform.ports(%A), a
+
+rule let platform.ports(%A:0..65535), a = "   out (%A), a"
+
+;BIN_EXTENSION defines extension of the resulting binary file produced by compiler.
+BIN_EXTENSION: "z80"
+
+;VARHEAP defines memory area that can be used by Atalan to allocate variables.
+type VARHEAP:$8000..$A000   
+
+rule compiler %A,%B = "["]%/pasmo["] --bin ["]%A.asm["] ["]%A.%B["]"

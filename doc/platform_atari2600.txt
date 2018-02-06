@@ -1,0 +1,20 @@
+***************************************
+ATALAN Atari 2600 game console platform
+***************************************
+
+::index::
+
+************
+Introduction
+************
+
+This document describes standard ATALAN library for ATARI 2600 game consoles.
+Some parts of this text require good knowledge of ATARI 2600 platform.
+
+*******************
+Basic memory layout
+*******************
+
+Application starts at $2000.
+
+Variables are placed in zero page starting from address 128.

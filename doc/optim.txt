@@ -1,0 +1,86 @@
+﻿*****************************
+ATALAN Compiler Optimizations
+*****************************
+
+Atalan compiler performs extensive code optimizations. As 6502 family processors are
+very irregular, common optimization methods had to be tailored 
+and some special techniques had to be developed to fit the 6502 instruction set.
+
+For example, due to low number of registers (A,X,Y) and their specialized functions,
+usual register allocation technique could not be used.
+
+However, all optimizations are programmed in such a way as to allow easy implementation of
+other processors.
+
+
+===========================
+Local variable optimization
+===========================
+
+Procedure local variables and arguments are internaly allocated as global variables.
+Atalan analyzes procedure call chain and if possible, reuses global variable
+space to several procedures.
+
+=======================
+Procedure optimizations
+=======================
+
+- unused procedure removal
+- procedure inlining (procedure, that is called only once is automatically inlined)
+- procedure arguments and local variables are implemented using 'global' variables (no stack)
+- processor registers are used to pass arguments in & out of procedure
+- tail call optimization (call X, return => goto X)
+
+===============================
+Instruction level optimizations
+===============================
+
+- multiplication, division and modulus is performed using shift or and when applicable
+- when comparing variable that has only two possible value and one of them is 0, always compare to zero
+- operation merging (a = a + 10, a = a + 20 => a = a + 30)
+- constant variables send to print are converted to strings (a = 30 "[a]"  => "30")
+ 
+===================
+Local optimizations
+===================
+
+- constant folding
+- constant propagation
+- common subexpression elimination
+- live variable analysis
+- optimal operation is chosen according to variable range
+- variable merging  (X = A,  A = 30  =>  X = 30)
+
+===================
+Array optimizations
+===================
+
+- 2d array is implemented using index (array of pointers to rows)
+- byte array up to 256 bytes is accessed using index register  
+
+==========================
+Control flow optimizations
+==========================
+
+- goto elimination (eliminate goto to goto)
+- dead code elimination
+- conditional jump around jump simplification (X if a=b, goto Y, X@, ..., Y@ => Y if a<>b, ..., Y@)
+
+==================
+Loop optimizations
+==================
+
+- most common variables in loop are replaced by registers (if possible)
+- loops counting to byte boundaries ($100, $10000, ...) are implemented using C overflow (and are therefore correct without special tricks!)
+
+===============
+Macro expansion
+===============
+
+- it is possible to write macros that are expanded in place
+
+==================
+Data-flow analysis
+==================
+
+- live variable analysis

@@ -1,0 +1,116 @@
+*****************************************
+ATALAN - Novı programovací jazyk pro 6502
+*****************************************
+
+Rudla Kudla
+
+****
+Úvod
+****
+
+ATALAN je novı programovací jazyk, generující kód pro procesor 6502.
+Jedná se o cross-compiler, tedy editace a kompilace probíhá na PC a vıslednı
+program pak je mono spouštìt v emulátoru nebo reálném Atari.
+Zatím je stále ve vıvoji, ale ji kompiluje jednoduché pøíkládky a ke
+kompletní funkènosti snad nemá daleko.
+
+Tento text slouí jako upoutávka na nìj. Podívat se lze na web
+http:\\atalan.kutululu.org
+
+
+*********************
+V èem je ATALAN jinı?
+*********************
+
+ATALAN by mìl umonit programování na relativnì vysoké úrovni.
+Nejjednodušší aplikace vypadá takto:
+
+"Hello, World!"
+
+Elegance ATALANu pro pouití s ATARI by se pak mìla ukázat napøíklad v okamiku,
+kdy chci svùj prográmek okrášlit jinım fontem:
+
+baloon:font = file "baloon.fnt"
+set'font baloon
+"Hello, World!"
+
+
+Pøedpokládám podobnou podporu pro Display Listy, PMG, zvuky, a další ATARI specifické
+registry.
+
+Podporováno by mìlo bıt i vypínání ROM.
+
+V ATALANu bude mono pøímo psát rutiny pøerušení.
+Zatím je to v pøedstavách, ale rád bych mìl syntaxi typu:
+
+ON VBI routine
+ON DLI dl_routine
+
+
+******************
+Pro koho je urèen?
+******************
+
+Líbilo by se mi, kdybychom ATALANEM nahradili programování v BASICu. Pravdìpodobnì
+v nìm pùjde napsat øada prográmkù, které by jinak u musely bıt psány v assembleru.
+Samozøejmì kdokoliv, kdo se zajímá o programovací jazyky mùe vyvíjet ATALAN samotnı.
+
+************
+Kvalita kódu
+************
+
+Kvalita (rychlost) vısledného kódu je samozøejmì prioritou.
+K dispozici je jednoduchı peephole optimizer a analıza ivıch promìnnıch.
+Další optimalizace by mìly následovat.
+
+Plánuji vynikající podporu pro pole. Pro dvojrozmìrná pole napøíklad bude
+automaticky generována tabulka pointerù na první element daného rádku.
+
+Funkce, pouité pouze jednou, pøípadnì patøiènì krátké, budou automaticky vkládány 
+pøímo na místo svého volání (inlining). To umoní správnì strukturovat kód, ani
+si budeme muset dìlat starosti s efektivitou volání funkcí.
+
+************************
+Srovnání s jinımi jazyky
+************************
+
+=======
+ACTION!
+=======
+
+Základním srovnáním je samozøejmì ACTION!, klasika vyšších programovacích jazykù
+pro ATARI. Ve srovnání s ACTION! by mìl ATALAN generovat lepší kód. Podporuje
+také sloitìjší konstrukce, jako dvojrozmìrná pole, vnoøené funkce atd.
+Velkou vıhodou by také mìla bıt dostupnost zdrojovıch kódù a monost dalšího vıvoje.
+
+
+====
+CC65
+====
+
+Oproti CC65 se ATALAN nesnaí implementovat existující jazyk. C není pro ATARI
+pøíliš vhodné, protoe potøebuje relativnì velkı zásobník, kterım architektura
+6502 nedisponuje.
+
+Aèkoliv vìtšinu svého softwaru píšu v C nebo C++, nepovauji syntaxi C za nijak
+zvláš pìknou (nicménì to je samozøejmì subjektivní názor).
+
+=========
+Assembler
+=========
+
+Programování v assempbleru nic nenahradí, ale pøece jenom mùe bıt pro øadu
+projektù pouít nìco rychlejšího.
+
+***********************
+Platformová nezávislost
+***********************
+
+V dnešní dobì jsou u vıvojáøské komunity dosti malé, take bych rád získal také podporu
+od nìjakıch vıvojáøù z C64.
+
+Pøedstavuji si, e by se dala vytvoøit jednotná knihovna pro vıvoj aplikací na Atari
+i C64 zároveò. (Domnívám se, e by to mìlo bıt moné napøíklad u her jako Kolony 2106).
+
+Aplikace by se pak pøekompilovala pro kadou platformu zvláš a bylo by.
+

@@ -1,0 +1,51 @@
+; 'NES background example'
+;---------------------------------------------------------------------
+; Implemented in ATALAN Programming language
+; by Marcel Cevani
+; created 14.01.2011
+;---------------------------------------------------------------------
+; This is example a background is displayed by loading pal and nametable data PPU chip.
+; Please run the buildBg.bat file, it append the gfx data to the rom
+; Tnx to Patater for his nice Nes dev tutorials (http://www.patater.com/nes-asm-tutorials) ;)
+; gfx test data is from playpower.org game hanuman quiz
+; NROM rom layout:
+; Max codesize   : 16Kib
+; Max gfxsize    : 4Kib
+; Emulator tested: fceux (2.1.4a)
+;---------------------------------------------------------------------
+; changed by Marcel Cevani 31.01.2011
+;  - clean up souce code
+;  - created some simple lib's for controlling sprites and background 
+;  - changed gfx to Hanuman quiz
+;  Tnx to Atalan the snake & rudla :)
+
+use nes
+use nes_bg
+
+const quizScreenPal:bgPal       = file "quiz_bg.pal"
+const quizScreenNam:bgNameTable = file "quiz_bg.nam"
+
+; start of example
+start_example@
+
+; Wait 2 vblanks, then the NES is ready for us
+waitvbl
+waitvbl
+
+; setup PPU (display disabled)
+setDisplayMode %00000000 %00000000
+; loading pal
+bgLoadPal quizScreenPal
+; loading nametable
+bgLoadNameTable quizScreenNam
+; enabled Background and Sprites
+setDisplayMode %00001000 %%00011110
+; Set background Scrolling to x=0 and y=0
+bgSetScrolling 0 0
+
+main@
+; wait until we are in vblank
+waitvbl
+;CPU_PROF_START = 1 ; Profiling start
+;CPU_PROF_END = 1 ; Profiling end
+goto main

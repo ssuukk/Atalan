@@ -1,0 +1,27 @@
+﻿Different types of hardware registers
+
+in		Input register. It is only possible to read the value.
+      Any attempt to modify it will be reported as errro.
+      The value may change independently from the application, so it may not
+      be cached.
+      An example is state of joystick button.
+      
+out   Output only register. It may not be read. Writing to it will somehow
+      modify the state of the system, so it may not be removed by optimizer.
+      An example may be register defining the color of background.
+
+
+in sequence  Input register with side-effect. Reading it has some kind of side effect
+      (like you are reading a sequence of bytes from some buffer, where each read
+			 returns next byte).
+			 Optimizer will never remove reading of the register, even if the value red
+			 is not used anyhow.
+
+in out  Output register, whose value may be read back. The value written into
+       The register will be read back, until the applicaton changes it.
+       Read of the register may be cached, writes must be presved though.
+
+
+It is possible to create two registers for the same address. 
+One will be used for writing, another for reading.
+In such case, they are considered completely different registers.

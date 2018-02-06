@@ -1,0 +1,71 @@
+﻿;ATALAN Language system definition file
+;This file is always loaded as first file by the compiler.
+
+;system scope is used to define variables used by Atalan system. 
+
+system: scope
+
+;==========
+;Interrupts
+;==========
+
+;All procedures based on type interrupt are considered to be implementation
+;of some interrupt.
+;As such, they will not share local variables with other, normal procedures or
+;other types of interrupt.
+;Actual interrupt types are defined by respective platforms.
+
+interrupt: type = proc
+
+;============
+;Boolean type
+;============
+
+bool: type = enum 
+	false: 0
+	true:  1
+
+;=================
+;Predefined macros
+;=================
+
+inc: macro x =
+	x = x + 1
+
+dec: macro x =
+	x = x - 1
+
+swap: macro x, y =
+	t = x
+	x = y
+	y = t
+
+abs: macro x -> y =
+	y = x
+	if x < 0 then y = -x
+
+
+min: macro x,y -> z = 
+	z = x
+	if z > y then z = y
+	
+max: macro x,y -> z =
+	z = x
+	if z < y then z = y
+
+	
+;Support for array initialization 
+;a() = 0
+;a(10..20) = 13
+
+rule %A:array of %B(%C..%D) = %E:%B = macro
+	for i:%C..%D %A#i = %E
+
+;Assign array to specified position
+;a(5) = 3,4,5,6
+
+rule %A:array of %B(%C) = %E:array of %B(%F..%G) = macro
+	j = %C
+	for i:%F..%G 
+		%A#j = %E#i
+		inc j

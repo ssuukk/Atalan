@@ -1,0 +1,36 @@
+******************************
+ATALAN 6502 Simulator platform
+******************************
+
+::index::
+
+************
+Introduction
+************
+
+Sim6502 platform compiles programs that can be run in 6502 Simulator by Michal Kowalski. You can download it from <a href="http://home.pacbell.net/michal_k/6502.html">here</a>.
+
+*****************
+Compiling program
+*****************
+
+Use -P sim6502 switch to compile a program for 6502 Simulator platform.
+
+For example
+::::::
+atalan -P sim6502 hello_world
+::::::
+
+Generated binary programm has XEX extension. This is executable in Atari format,
+that can be loaded by simulator using File/Load Code command.
+ 
+*******************
+Basic memory layout
+*******************
+Code is generated from address $2000.
+
+**********************
+Printing
+**********************
+
+Output is printed to the simulator console using built-in memory mapped IO ports ($E000-$e006).

@@ -1,0 +1,45 @@
+﻿********
+Projects
+********
+
+================
+Atalan The Snake
+================
+
+Author: Jakub Krzak
+
+Date: August 2010
+
+Atalan implementation of popular Snake game.
+
+This was the first game developed in Atalan by someone else than language author.
+
+
+<img src="projects/snake/screenshot.png">
+
+==============
+Atalan Sokoban
+==============
+
+Author: nosty (http://gr8.atari.pl)
+
+Date: August 2010
+
+Atalan implementation of popular Sokoban game.
+
+<img src="projects/sokoban/screenshot.png">
+
+=========
+Little 15
+=========
+
+Author: Jakub Husak 
+
+Date: 1st September 2010
+
+Not so simple Atalan game.
+
+But the development was really fast: 4 days with graphics and music. 
+
+<img src="projects/fifteen/screenshot.png">
+

@@ -1,0 +1,15 @@
+;Calling a procedure using its address
+
+type binary:proc x,y:0..255 -> s:-255..512
+badd:binary = return x + y
+bsub:binary = return x - y
+
+op:adr of binary
+
+op = badd
+r = op 20,10
+assert r = 30
+
+op = bsub
+r = op 20,10
+assert r = 10

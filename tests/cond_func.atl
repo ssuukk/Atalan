@@ -1,0 +1,11 @@
+test: proc x:0..100, y:0..100 -> b:bool =
+	b = false
+	if x > y then
+		b = true
+
+
+z = 0	
+if not test(10, 20) then
+   z = 30
+   
+assert z = 30

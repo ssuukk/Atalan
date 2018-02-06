@@ -1,0 +1,14 @@
+;Test 8-bit bit signed arithmetics implementation
+
+out a',b':-50..50
+in a@a', b@b'
+
+a' =  10
+b' = -13
+
+;=== add
+assert a + b = -3
+
+;=== sub signed vs. signed
+assert a - b = 23
+assert b - a = -23

@@ -1,0 +1,382 @@
+﻿****
+TODO
+****
+
+
+*********************************************************
+
+Optimized Flags Code for 6502
+Tuesday, July 15th, 2008
+When I disassembled Steve Wozniak’s Apple I BASIC, I found a 6502 trick that I had never seen before, although I had read a lot of 6502 code, including the very well-written Commodore BASIC (i.e. Microsoft BASIC for 6502).
+
+What is the most optimized way (shortest code) to set, clear and test a flag?
+
+Normally, you would do this (“flag” is a byte in the zero page):
+
+function	code	bytes	cycles
+set	
+lda #1
+sta flag
+4	5
+clear	
+lda #0
+sta flag
+4	5
+test	
+lda flag
+beq cleared
+4	5/6
+Woz did it like this:
+
+function	code	bytes	cycles
+set	
+lda #$80
+sta flag
+4	5
+clear	
+lsr flag
+2	5
+test	
+bit flag
+bpl cleared
+4	5/6
+The trick is to store the flag in bit #7. Clearing bit #7 is easy: Just do a logical shift right, which will always write a zero into the MSB; we don’t care about the contents of the other bits. The “lsr zp” is the same speed as the “lda/sta zp” combination, but only occupies 2 bytes instead of four.
+
+The other advantage of this method is that it is possible to test the flag without destroying a register. The “bit” instruction will just copy the MSB into the negative flag, while the “lda” would have overwritten the accumulator.
+
+I can’t see why this couldn’t be adapted to other (CISC, RMW-capable) CPUs as well. If you are fluent in any other assembly language, please post a comment.
+
+*********************************************************
+
+Array access to reference (adr of array(x))
+
+- parse adr(x) as element where adr is adr of array, not directly array
+- translation rules for those arrays
+
+TETRIS: Use random'tile routine with mod
+
+
+proc :type   (type must be structure type, or proc type or macro type)
+
+================
+Type inferencing
+================
+
+- self modification of attribute in loop should report error requesting 
+  explicit declaration of that variable type
+- self referencing (cannot define type - available in esieve)
+- test assignment to non-existing variable
+- warning hi from byte variable (explicitly defined)
+
+===============
+Error reporting
+===============
+
+- Report unexpected indent
+- support constant expressions in enumerator definitions
+- dead code elimination in parsing (conditional compilation)
+
+- Records
+  - type definition (just variable of TYPE_STRUCT with local variables - address of variable is offset of the variable regarding the structure base)
+  - use MODE_ELEMENT as access to record field
+  - type of the element is type of field (or last field)
+	- combination with array 
+
+- xor, or & and self (produces 0, self, 0)
+- linear transformation operator   a = RANDOM in 10..30
+- support default values for function arguments
+
+- support macro parameters in type parsing (%A, %B before array indices) and result type
+  (only when parsing rule)
+  
+- loops with variable should test the bounds first
+
+- for i until p(i) = 5
+
+- Rule should use parse block to parse code
+
+- platform:atari		- must be first assignment in file
+		platform atari, c64, mc6502
+		first think in the file (possibly after comments)
+		platforms may nest (i.e. platform file may specify another platform)
+		atari->mc6502
+
+=========    
+In TETRIS
+=========
+
+- when tile drops with speed (force) make screen vibrate vertically
+
+if x,y = 3,4 then
+
+::::::::::::::::::::
+	tile = 7
+	while tile = 7
+		tile = random and 7
+::::::::::::::::::::::
+
+::::::::::::::::::::::::::
+draw'tile:proc
+	tile:tile
+	x:x
+	y:y
+=
+	code of the procedure
+::::::::::::::::::::::::::::::
+
+- conditional expression
+
+b = if a then 3 else 4
+
+- loop expression
+
+b = for i:0..10 where s(i) <> 0 (if s(i) = 3 return i)
+ 
+- use of constant expressions in integer definitions 
+
+- s(15..20, 7) = 5
+   =>  for ?:15..20 ( s(?,7) = 5 )
+   
+- custom defined instructions should be built-in
+    
+- a(..) = 0, a() = 0, a = 0		-> set all elements of a to 0
+- array assignment a(23) = sprite
+
+- string initialized arrays
+- a(..50)
+- a(50..)
+- array slices a(23..50) = 0
+- dif slices a(23..+20) = 0
+- a = 1,2,3  (repeat the vvalue or fill with zeroes, or keep rest untouched?)
+
+- maybe we may have insert implemented?
+   a(10..+1) = "ahoj"  -> insert 4 bytes instead of one
+x   a(10) = "ahoj" 
+
+- constant arrays (initialization)
+- sin,cos,... -> translation operators
+ 
+- detect possibily to invert for loop
+  Input or output registers musn't be accessed.
+  (RANDOM is exception - it is input which does not require an order)
+  
+- detect possibility to increment loop variable so, that it ends with 0
+  This means offseting arrays based on this variable.
+  There cannot be aby other computation with the variable.
+
+- shallow binding		 
+- prints on same line are not entered?	
+- platforms to www menu
+- type should be Var too 
+
+==========
+Generating
+==========
+
+- flags are represented as special registers with 0..1
+- instruction may define implied results to flags
+	let _a,0
+	flag _z,0
+	flag _n,0
+
+    ifeq lbl, _z, 0
+    ifeq lbl, _z, 1
+
+	;labels in macros are indexed using macro invocation sequence number
+
+	add %0:card, %0, 1   =
+			add %0, %0, 1
+			flag _z
+			ifeq l1, _z, 0		; skip 1 instruction
+			add %0(1), %0(1), 1
+			label l1
+
+
+
+;We need inc & dec to implement carry
+
+	ADD _t, _c, %1 ADD _a, _a, _t  = adc %1 
+	
+	inc _a, _c, %1
+	dec _a, _c, %1
+	  
+======
+Arrays
+======
+
+- compute size
+- two byte index
+- multiple dimensions (up to 2)
+x index tables (multidimensional array with 1st index byte - basically fastened multiplication)
+- sliced arrays (structures, integers)
+
+
+idx 	computed index (possibly by multiplication)
+
+var1)
+	letarr :byte, @, :card  
+
+	clc
+	lda #<arr
+	add idx
+	sta ptr
+	lda #>arr
+	add idx+1
+	sta ptr+1
+	ldy #0
+	lda (ptr),y
+	
+var2) self-modifying code
+	clc
+	lda #<arr
+	add idx
+	sta ptr+1
+	lda #>arr
+	add idx+1
+	sta ptr+2
+ptr	lda $ffff
+
+=============
+Documentation
+=============
+
+- Generate examples page
+- Colorize
+- Generate Index for reference
+
+======================
+Source code generation
+======================
+
+- lexer searches var table (so it can return TOKEN_VAR immediatelly)
+- proc can be defined using instructions (only two arg, one result)
+- range type (min..max), variable defines type
+
+==============
+Counted arrays
+==============
+
+Array can remeber number of elements it contains.
+It is then possible to add items, get count and access top item. 
+
+===================
+Fixed point support
+===================
+
+Specify multiplier. Powers of 2 are very usefull due to it's efficiency, but any multiplier may be used.
+
+seconds:0..65535*50
+
+seconds = 3.5		;seconds = 175
+
+Seconds are specified in ticks.
+
+For time, it may be ticks.
+
+Time is specified in seconds. It is then known, that is should be multiplied by 50, or 60 (depending
+on whether the counter is PAL or NTSC).
+
+Fraction support.
+
+===================
+table based parsing
+===================
+
+- macros defining operators
+
+=====
+IDEAS
+=====
+
+- instructions may be macros, arguments define number o arguments (and type - label)
+
+============
+6502 backend
+============
+
+- constant array offset may be implemented as lda array+offset (even for big arrays!!)
+- variable is referenced together with it's offset (offset is in bytes, or bits - as specified in struct)
+      
+- rule may be special procedure with argument list and token list
+
+  jmpeq dst, src, src
+
+- bit operations
+
+- procedures declaration
+- procedures call (no arg)
+- procedures args
+- structures
+- arrays
+	- short byte array
+	
+- optimizer
+	- mutiply and divide using shift (*2, *4, *8, *16)
+	- multi-rule matches
+	- match variables (%2, %3, %4, ...)
+	
+- freevar token
+- newvar  token
+
+==========
+Constructs
+==========
+
+while x = 3
+	<case1>
+else while x = 4
+	<case2>
+
+
+while x = 3 or x = 4
+	if x = 3
+		<case1>
+	else
+		<case2>
+
+******************
+Unit Test
+******************
+
+- lo, hi
+- array access & arithmetic etc.
+		
+******************
+OPTIMIZE
+******************
+
+- try to use TSX, TXS for on extra register (if the function does not call other functions)
+- try to use pha pla in loops
+
+   A is not used anymore, so here ldx #1 would be better.
+   Maybe we may have the information on next use from live analysis?
+
+- optimize ldx #5 ldx #6  to ldx #5, inx
+- multiply byte by 10 (use temporary _arr ?)
+- optimize x + 0, y * 1,... (do it in eval const?)
+- multiply byte by 3
+x do not generate unnecessary labels (missile_size)
+
+- when calling procedure, we may want to mark variables as used or not used based on
+  current values (constants)
+  
+
+- optimize PROC parameter (and local variable?) usage
+
+x Should replace let _a, _2000(0) with lo _a, set_col
+
+    lo _a, cycle
+    let VVBLKD(0), _a
+    hi _a, cycle
+    let VVBLKD(1), _a
+    lo _a, set_col
+    let _2000(0), _a
+    hi _a, set_col
+    let _2000(1), _a
+    let _a, _2000(0)
+    let VDSLST(0), _a
+    let _a, _2000(1)
+    let VDSLST(1), _a
+
+x function inlining (function used only once automatically)
+- Multiple prints should be joined together

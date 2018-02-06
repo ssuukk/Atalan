@@ -1,0 +1,21 @@
+z = max 10,20
+
+assert z = 20
+
+z = min 3,17
+assert z = 3
+
+in a,b:0..100
+out a'@a, b'@b
+
+a' = 50
+b' = 30
+
+z = max a,b
+
+assert z = 50
+
+z = min a,b
+assert z = 30
+
+

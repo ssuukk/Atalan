@@ -1,0 +1,104 @@
+﻿;Relational operators test
+
+use con6502
+
+out s8o, s8o2:-128..127
+in  s8i@s8o, s8i2@s8o2:-128..127
+
+out u8o, u8o2:0..255
+in  u8i@u8o, u8i2@u8o2:0..255
+
+;out s16o:-32768..32767
+;in  s16i@s16o:-32768..32767
+
+;in out s16:-32768..32767
+
+;=== unsigned byte
+
+u8o = 100
+u8o2 = 13
+
+assert u8i <> 110
+assert u8i = 100
+assert u8i2 <> u8i
+
+assert u8i < 110
+assert u8i2 < u8i
+assert 110 > u8i
+
+assert u8i > 90
+assert u8i > u8i2
+
+assert u8i ≥ 100
+assert u8i ≥ 99
+assert u8i ≤ 100
+assert u8i ≤ 101
+
+u8o2 = 100
+assert u8i2 = u8i
+
+;=== signed byte
+
+s8o = -100
+s8o2 = 30
+
+assert s8i = -100
+assert s8i ≠ 110
+assert s8i2 = 30
+assert s8i ≠ s8i2
+
+assert s8i < -99
+assert s8i < 0
+assert s8i < 100
+assert s8i2 < 31
+assert s8i < s8i2
+
+assert s8i > -101
+assert s8i2 > -1
+assert s8i2 > 29
+assert s8i2 > s8i
+
+;s8i = -100
+assert s8i <= -100
+assert s8i <= -99
+assert s8i <= 0
+assert s8i <= 113
+assert s8i2 <= 30
+                 
+assert s8i >= -100
+assert s8i >= -101
+assert s8i2 >= 30
+assert s8i2 >= 29
+assert s8i2 >= s8i
+                 
+;=== unsigned vs. signed byte
+
+u8o = 100
+s8o = 100
+
+assert u8i = s8i
+assert s8i = u8i
+
+;These contants have same bit representation (%11111111)
+u8o = 255
+s8o = -1
+
+assert u8i ≠ s8i
+assert s8i ≠ u8i
+
+assert u8i > s8i
+assert s8i < u8i
+
+u8o = 100
+s8o = 110
+
+assert s8i > u8i
+assert s8i >= u8i
+assert u8i < s8i
+assert u8i <= s8i
+
+u8o = 100
+s8o = 100
+
+assert s8i >= u8i
+assert u8i <= s8i

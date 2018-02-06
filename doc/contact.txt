@@ -1,0 +1,19 @@
+﻿*******
+Contact
+*******
+
+Atalan is currently one man project by Rudla Kudla.
+
+To contact me, send an e-mail to address <img src="raster/email.png">.
+
+ATALAN has it's <a href="http://www.facebook.com/pages/Atalan/105900742774765">Facebook Page</a>. 
+
+There is a <a href="http://groups.google.com/group/atalan-lang?hl=en">discussion group</a>.
+ 
+If you are interested in programming languages, operating systems and GUIs,
+you my want to see my other project at:
+<a href="http://www.kutululu.org">www.kutululu.org</a>.
+
+If interested in ATARI computers, goto <a href="http://atarionline.pl">atarionline.pl</a>.
+
+MADS assembler used for compilation may be found <a href='http://mads.atari8.info/'>here</a>. 

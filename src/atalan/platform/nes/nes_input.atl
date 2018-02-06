@@ -1,0 +1,40 @@
+;********************************
+;ATALAN NES input functions
+;********************************
+; created by Marcel Cevani 23.03.2011
+; tnx to Atalan the snake & rudla :)
+
+; Const for Joypad flag testing
+const 
+	JOYPAD_RIGHT = 1
+	JOYPAD_LEFT  = 2
+	JOYPAD_DOWN  = 4
+	JOYPAD_UP    = 8
+	JOYPAD_START = 16
+	JOYPAD_SELECT= 32
+	JOYPAD_B     = 64
+	JOYPAD_A     = 128
+	
+
+;Information: Function reads out all Joypad 1 Buttonstates and write them into one byte
+;             Button states can then be tested with the Const values (JOYPAD_RIGHT....)
+getJoyPad1State:proc -> result:byte = 
+          INPUT_PAD1_RESET = 1
+          INPUT_PAD1_RESET = 0
+          result	      	 = 0
+          for x:0..7
+                result  = lo (result * 2)
+                if INPUT_PAD1_READ bitAnd 1 <> 0
+                    result = result bitOr 1
+
+;Information: Function reads out all Joypad 2 Buttonstates and write them into one byte
+;             Button states can then be tested with the Const values (JOYPAD_RIGHT....)
+getJoyPad2State:proc ->result:byte = 
+          INPUT_PAD2_RESET = 1
+          INPUT_PAD2_RESET = 0
+          result	    	   = 0
+          for x:0..7
+                result  = lo (result * 2)
+                if INPUT_PAD2_READ bitAnd 1 <> 0
+                    result = result bitOr 1
+          

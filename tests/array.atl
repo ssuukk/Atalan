@@ -1,0 +1,11 @@
+a:array(0..113) of 0..200
+
+;Initialize the array with 0..113 
+for i:0..113 a(i) = i
+
+;compute the sum of the array
+s:0..65535 = 0
+for v in a s = s + v
+
+assert s = 6441
+

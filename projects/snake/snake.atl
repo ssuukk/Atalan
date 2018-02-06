@@ -1,0 +1,490 @@
+; 'Atalan the Snake'
+;---------------------------------------------------------------------
+; Snake game implemented in ATALAN Programming language
+; by Jakub Krzak
+; Katowice, August 2010
+;---------------------------------------------------------------------
+; Compiled with Atalan compiler, ver. 05-08-2010
+
+
+; SCREEN --------------------------------------------------------
+
+;GR.0, 40 x 25 characters 
+;We force it to address $8000 to make it aligned correctly.
+_scr@$8000:array(0..39, 0..24) of byte
+
+;Display list 
+const dl:array = 2 times $70, $42, _scr, $10, 23 times $02, $10, $02, $41, dl
+
+; CONSTANTS ------------------------------------------------------
+
+;Font file
+const fontFileName:font = file "snake.fnt"
+
+; Starting position of the snake on the screen 
+const 
+	HSx = 22
+	HSy = 10
+	SLength = 7
+
+;Characters 
+const 
+	SNAKE_HEAD_l 	= 72
+	SNAKE_HEAD_r 	= 69
+	SNAKE_HEAD_u 	= 70
+	SNAKE_HEAD_d 	= 71
+	SNAKE_BODY_nw 	= 75
+	SNAKE_BODY_ws 	= 77
+	SNAKE_BODY_se	= 78
+	SNAKE_BODY_en 	= 76
+	SNAKE_BODY_v 	= 79
+	SNAKE_BODY_h 	= 80
+	SNAKE_TAIL_l 	= 66
+	SNAKE_TAIL_r 	= 68
+	SNAKE_TAIL_u 	= 65
+	SNAKE_TAIL_d 	= 67
+	
+	FRUIT			= 16
+	
+	WALL_CHR 		= 73
+	RWALL_CHR 		= 74
+
+type bool:0..1
+
+; some hardware registers
+out COL'BK@$d01a:byte
+out COL'PF1@$d017:byte
+out COL'PF2@$d018:byte
+in RTCLOCK@20:byte
+
+; GLOBAL VARIABLES ------------------------------------------------
+
+; Position of the snake on the screen 
+Hx:1..39
+Hy:1..24
+Tx:1..39
+Ty:1..24
+
+;Snake's head direction 
+HDir:stick'state
+
+Score:0..10000
+Level:1..9
+LevDelay:0..10
+
+; PROCEDURES ---------------------------------------
+
+initialize:proc =
+	Score = 0
+	Level = 1
+	LevDelay = 10
+
+
+writeCredits:proc =
+	_scr(3,7)   = "+--------------------------------+"
+	_scr(3,8)   = "!                                !"
+	_scr(3,9)   = "!       PROGRAMMED BY JKR        !"
+	_scr(3,10)  = "!                                !"
+	_scr(3,11)  = "! IN ATALAN PROGRAMMING LANGUAGE !"
+	_scr(3,12)  = "!                                !"
+	_scr(3,13)  = "!     KATOWICE, AUGUST 2010      !"
+	_scr(3,14)  = "!                                !"
+	_scr(3,15)  = "+--------------------------------+"
+
+	
+erasePlayfield:proc =
+	for yy:2..22 for xx:1..38 _scr(xx, yy) = 0
+
+	
+drawSnakeBegin:proc(x y len) =
+	Hx = x
+	Hy = y
+	Tx = x - len
+	Ty = y
+
+	xx = Tx
+	until xx > Hx
+		_scr(xx, Hy) = SNAKE_BODY_h
+		inc xx
+
+	_scr(Hx, Hy) = SNAKE_HEAD_r
+	_scr(Tx, Ty) = SNAKE_TAIL_r
+
+	HDir = right
+
+	
+getNextHeadCoord:proc(>x:byte >y:byte) = 
+	; get next head's coordinates depending on its direction
+	if HDir = right
+		x = Hx + 1
+		y = Hy
+	else if HDir = up
+		x = Hx 
+		y = Hy - 1
+	else if HDir = left
+		x = Hx - 1
+		y = Hy
+	else
+		x = Hx
+		y = Hy + 1
+
+		
+getNextTailCoord:proc(ss:byte >x:Tx >y:Ty) = 
+	; get next tail's coordinates depending on its direction
+	if ss = SNAKE_TAIL_r
+		x = Tx + 1
+		y = Ty
+	else if ss = SNAKE_TAIL_l
+		x = Tx - 1
+		y = Ty
+	else if ss = SNAKE_TAIL_u
+		x = Tx
+		y = Ty - 1
+	else if ss = SNAKE_TAIL_d
+		x = Tx
+		y = Ty + 1
+
+		
+moveTail:proc =
+	ts = _scr(Tx,Ty) ; current 'tail' character
+	xx,yy = getNextTailCoord ts
+	ns = _scr(xx,yy) ; snake's character next to the 'tail'
+	
+	_scr(Tx,Ty) = 0 ; erase the tail
+
+	; put a new 'tail' character (rotated, if needed)
+	if ns = SNAKE_BODY_nw 
+		if ts = SNAKE_TAIL_r then _scr(xx,yy) = SNAKE_TAIL_u else _scr(xx,yy) = SNAKE_TAIL_l
+			
+	else if ns = SNAKE_BODY_ws 
+		if ts = SNAKE_TAIL_r _scr(xx,yy) = SNAKE_TAIL_d else _scr(xx,yy) = SNAKE_TAIL_l
+			
+	else if ns = SNAKE_BODY_se
+		if ts = SNAKE_TAIL_u _scr(xx,yy) = SNAKE_TAIL_r else _scr(xx,yy) = SNAKE_TAIL_d
+			
+	else if ns = SNAKE_BODY_en
+		if ts = SNAKE_TAIL_l _scr(xx,yy) = SNAKE_TAIL_u else _scr(xx,yy) = SNAKE_TAIL_r
+
+	else
+		_scr(xx,yy) = ts
+		
+	Tx = xx
+	Ty = yy
+
+		
+putNeck:proc(dir1:stick'state neck1 dir2:stick'state neck2 body) =
+	; put the 'neck1', 'neck2' or 'body' characters
+	; in the current head's position
+	; depending on the 'dir1' and 'dir2' arguments
+	if HDir = dir1
+		_scr(Hx,Hy) = neck1  
+	else if HDir = dir2
+		_scr(Hx,Hy) = neck2
+	else 
+		_scr(Hx,Hy) = body
+
+		
+increaseLevel:proc =
+	inc(Level)
+	dec(LevDelay)
+
+eatFruit:proc =
+	
+	Score = Score + 10 * Level
+			
+	if Score = 150 increaseLevel ; 15 * 10
+	if Score = 450 increaseLevel ; + 15 * 20
+	if Score = 900 increaseLevel ; + 15 * 30 
+	if Score = 1500 increaseLevel ; + 15 * 40
+	if Score = 2500 increaseLevel ; + 20 * 50
+	if Score = 3700 increaseLevel ; + 20 * 60
+	if Score = 5800 increaseLevel ; + 30 * 70
+	if Score = 9000 increaseLevel ; + 40 * 80
+		
+;	l = Level
+;	s:Score = Score  	; for some reason '"... SCORE: [Score]"' doesn't work
+	_scr(0,24) = " LEVEL: [Level]                   SCORE: [Score]" 
+
+	
+generateFruit:proc =
+	; generate random coordinates inside the playing area: 1..38, 2..22
+	x:Tx = (RANDOM and 63) + 1
+	y:Ty = (RANDOM and 31) + 2
+	while x > 38 x = x - 38
+	while y > 22 y = y - 22
+	; if this position is occupied, find a free one by increasing (and wrapping) x, then y
+	while _scr(x,y) <> 0
+		if x <> 38
+			inc x
+		else
+			x = 1
+			if y = 22 then 
+				y = 2
+			else 
+				inc y
+	; put the fruit on the screen				
+	_scr(x,y) = FRUIT
+
+	
+moveHead:proc(>gotFruit:0..1) = 
+	gotFruit = 0
+	
+	hs = _scr(Hx,Hy) ; current 'head' character
+	xx,yy = getNextHeadCoord
+	ns = _scr(xx,yy) ; character in front of the 'head'
+
+	; find a new 'head' character
+	if HDir = right	 
+		nh = SNAKE_HEAD_r
+	else if HDir = up
+		nh = SNAKE_HEAD_u
+	else if HDir = left
+		nh = SNAKE_HEAD_l
+	else
+		nh = SNAKE_HEAD_d
+		
+	; turn the head
+	_scr(Hx,Hy) = nh
+	
+	; check what is ahead and if the move is possible
+	if ns = FRUIT
+		gotFruit = 1 
+	else if ns <> 0 
+		goto game'over
+	
+	; find and put the character next to the head
+	if hs = SNAKE_HEAD_r 
+		putNeck(up SNAKE_BODY_nw down SNAKE_BODY_ws SNAKE_BODY_h)
+			
+	if hs = SNAKE_HEAD_u 
+		putNeck(left SNAKE_BODY_ws right SNAKE_BODY_se SNAKE_BODY_v)
+		
+	if hs = SNAKE_HEAD_l 
+		putNeck(up SNAKE_BODY_en down SNAKE_BODY_se SNAKE_BODY_h)
+		
+	if hs = SNAKE_HEAD_d 
+		putNeck(left SNAKE_BODY_nw right SNAKE_BODY_en SNAKE_BODY_v)
+
+	; put the head character in the new position
+	_scr(xx,yy) = nh
+	Hx = xx
+	Hy = yy
+
+
+; Random animation -------------------------
+
+drawSnakeAtRandomPosition:proc =
+	rl:6..21 = (RANDOM and 15) + 6			;rl = 6..15+6
+	while rl > 15 
+		rl = rl - 9
+	ry:Hy = (RANDOM and 15) + 2
+	while ry > 13 
+		ry = ry - 11
+	if ry > 6 then ry = ry + 9
+	rx:Hx = (RANDOM and 63) + (1 + rl)
+	while rx > 38 
+		rx = rx + (1 + rl) - 38
+		
+	drawSnakeBegin(rx ry rl)
+
+	
+changeDirection:proc =
+	if _scr(Hx+1,Hy) <> 0
+		if _scr(Hx-1,Hy) <> 0
+			if _scr(Hx,Hy+1) <> 0
+				if _scr(Hx,Hy-1) <> 0
+					
+					; no more move
+					timer = 0
+					while timer < 100
+						COL'BK = VCOUNT * 2 + RTCLOCK	; do the Atari rainbow
+						if STRIG(0) = pressed  goto ex1
+
+					erasePlayfield
+					writeCredits
+					drawSnakeAtRandomPosition
+					goto ex1
+
+	r = RANDOM 
+	if r >= 128 goto turn'right
+	
+	turn'left@
+	if HDir = right	
+		HDir = up
+	else if HDir = up
+		HDir = left
+	else if HDir = left
+		HDir = down
+	else
+		HDir = right
+	
+	xx,yy = getNextHeadCoord
+	if _scr(xx,yy) <> 0 
+		goto turn'left
+	moveHead
+	goto ex1
+	
+	
+	turn'right@
+	if HDir = right	
+		HDir = down
+	else if HDir = up
+		HDir = right
+	else if HDir = left
+		HDir = up
+	else
+		HDir = left
+
+	xx,yy = getNextHeadCoord
+	if _scr(xx,yy) <> 0 
+		goto turn'right
+	moveHead
+	
+	ex1@ ; exit
+
+	
+animateSnake:proc =
+	if timer >= 12
+
+		moveTail
+
+		xx,yy = getNextHeadCoord
+		if _scr(xx,yy) <> 0
+			changeDirection
+			goto ex2
+
+		r = (RANDOM and 15) 
+		if r < 3 
+			changeDirection
+			goto ex2
+			
+		moveHead
+		
+		ex2@
+
+		timer = 0
+
+; -------------------------------------
+		
+drawArea:proc =
+	_scr(0,0)  = "       .-+  ATALAN THE SNAKE  +-.   V0.1"
+
+	for xx:0..39
+		_scr(xx, 1) = WALL_CHR
+		_scr(xx, 23) = WALL_CHR
+		
+	for yy:2..22	
+		_scr(0, yy) = WALL_CHR
+		_scr(39, yy) = RWALL_CHR
+		for xx:1..38
+			_scr(xx, yy) = 0
+	
+	_scr(39, 1) = RWALL_CHR
+	_scr(39, 23) = RWALL_CHR
+	
+	writeCredits
+	
+	_scr(0,24) = "     -+  PRESS TRIGGER TO START  +-     "
+
+	timer = 0
+	drawSnakeAtRandomPosition
+	
+	; now, wait for trigger and animate the snake
+	until STRIG(0) = pressed
+		animateSnake
+
+	erasePlayfield
+
+	_scr(0,24) = " LEVEL: 1                   SCORE: 0    "
+
+	;  wait for the trigger to be released
+	until STRIG(0) = not'pressed
+
+	
+; START -------------------------------------------
+
+;Initialize graphics.
+sdlstl = dl
+COLOR0(2) = 0
+COLOR0(5) = 0
+set'font fontFileName
+
+start'game@
+
+	initialize
+
+	drawArea ; draws the playfield and waits for the trigger to start
+
+	drawSnakeBegin(HSx HSy SLength)
+	generateFruit ; put the first fruit
+
+	grow:bool = 0
+	delayCounter:0..20
+	
+loop@	; Main loop
+
+	if STRIG(0) = pressed
+		delayCntr = 2 ; if we push the trigger, the snake goes faster
+	else
+		delayCntr = LevDelay
+
+	nDir = HDir
+		
+	while delayCntr > 0	; delay loop
+
+		; wait for tick and check the stick in the meantime
+		timer = 0
+		while timer < 1
+		
+			ss:stick'state = STICK(0)
+			if HDir = right then ss = ss or 8
+			else if HDir = up then ss = ss or 1
+			else if HDir = left then ss = ss or 4
+			else if HDir = down then ss = ss or 2
+				
+			if ss = right
+				if HDir = up then nDir = ss
+				if HDir = down then nDir = ss
+			else if ss = left
+				if HDir = up then nDir = ss
+				if HDir = down then nDir = ss
+			else if ss = up
+				if HDir = left then nDir = ss
+				if HDir = right then nDir = ss
+			else if ss = down
+				if HDir = left then nDir = ss
+				if HDir = right then nDir = ss
+		
+		dec delayCntr
+		
+	HDir = nDir ; new direction
+
+; move snake forward
+
+	if grow = 0 
+		moveTail ; only if the snake hasn't eaten a fruit before
+	else 
+		grow = 0
+	
+	if moveHead = 1
+		eatFruit
+		generateFruit
+		grow = 1
+
+goto loop
+
+;The game is over.
+;Display message and wait for the player to press the button to play again.
+
+game'over@
+
+_scr(11,24) = "-+ GAME OVER +-"
+
+until STRIG(0) = not'pressed
+
+until STRIG(0) = pressed
+	COL'BK = VCOUNT * 2 + RTCLOCK	; do the Atari rainbow
+
+until STRIG(0) = not'pressed
+
+goto start'game

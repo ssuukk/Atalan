@@ -1,0 +1,32 @@
+﻿;********************************
+;ATALAN nes sprite functions
+;********************************
+; created by Marcel Cevani 31.01.2011
+; added Functions for Sprite controlling
+; tnx to Atalan the snake & rudla :)
+
+
+; Defines for Sprite Pal
+type sprPal:array(15)
+
+;--------------------------------------------FUNCTIONS FOR SPRITE-MODULE---------------------------------------------
+sprLoadPal:proc a@(cpu.a,cpu.x):adr of sprPal @cpu.a @cpu.x @cpu.y @_TEMPB1
+
+;Information: Loads Sprite-Pal to the PPU (gfx chip)
+;sprLoadPal:macro a:sprPal = 
+;		  _TEMPB1 = lo a
+;		  _TEMPB2 = hi a
+;		   instr call sprLoadPal
+;		   instr ref _TEMPB1
+;		   instr ref _TEMPB2
+
+;Information: Function write's one sprite to OAM ram
+;  Important: For moving more Sprites on the screen,its better to use the sprite_dma module
+setSprite:proc(oamnr:0..63, nr:byte, x:byte, y:byte) = 
+		  PPU_OAM_ADR  = 0 ; write to oam index nr * 4
+		  PPU_OAM_ADR  = lo (oamnr * 4); 
+		  PPU_OAM_DATA = y
+		  PPU_OAM_DATA = nr
+		  PPU_OAM_DATA = 0
+		  PPU_OAM_DATA = x
+		

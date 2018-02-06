@@ -1,0 +1,53 @@
+﻿;******************************
+;ATALAN 6502 Simulator platform
+;******************************
+
+use "m6502"
+
+BIN_EXTENSION: "xex"
+type VARHEAP:0..255  
+
+;6502 Simulator uses memory mapped IO ports at address $E000.
+
+io:scope =
+	out clear_reg@$E000:byte 
+	out putc@$e001:byte
+	out putc2@$E002:byte
+	out puthex@$E003:byte
+	in  input@$E004:byte
+	in out posx@$e005:byte
+	in out posy@$e006:byte
+
+	clear:macro = instr let clear_reg, _a
+
+;Set the position of print buffer to address $600.
+;System print routine will use this buffer to format numbers.
+
+_stdbuf@$300
+	
+;Print Screen Routine	
+;This routine is used by Atalan to print strings.
+ 	
+system.print_scr:proc =
+
+	;Local procedure to print one character.
+	;The character is specified in A register.
+	printchr:proc chr@_a =
+		if chr = 0
+			io.putc = 10
+			io.putc = 13
+		else
+			io.putc = chr
+	
+	;This call is last in the function and is therefore converted to goto.
+	;Thanks to this, there is correct pointer to pront arguments on the stack.
+	system.print printchr  
+
+;Generated code will start at $2000.
+rule prologue  = "   org $2e0" "   dta a($2000)" "   org $2000"
+
+;Application is terminated by BRK.
+rule epilogue  = "   brk" 
+	
+rule code_end = ""
+

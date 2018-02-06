@@ -1,0 +1,45 @@
+****
+6502
+****
+
+The MOS Technology 6502 is an 8-bit microprocessor that was designed by Chuck Peddle and Bill Mensch for MOS Technology in 1975. 
+
+=========
+Assembler
+=========
+
+By default, Atalan generated asm source code is compiled by 
+<a href='http://mads.atari8.info/'>MADS</a> compiler. 
+
+=========
+Reference
+=========
+
+For more information about 6502 processor go to <a href="http://6502.org">http://6502.org</a>.
+
+====================
+Supported data types
+====================
+
+::
+0..255
+-127..128
+0..65535
+-32767..32768
+
+array(0..255) of (0..255 or -127..128)
+array(0..255) of 0..65535
+
+::
+
+Code like
+:::::::::::::::
+b = arr(idx)   
+:::::::::::::::
+is translated to
+:::::::::::::::
+ldx idx
+lda arr,x
+sta b
+:::::::::::::::
+	

@@ -1,0 +1,35 @@
+;Array with non-zero index lower bound
+
+in out a:array(2..10)
+in out b1,b2:byte
+
+const ca:array(5..10) = 5,6,7,8,9,10
+
+;"## Set and get"
+a(3) = 3
+a(5) = 5
+
+b1 = a(3)
+assert b1 = 3
+b2 = a(5)
+assert b2 = 5
+
+;"## Constant arrays"
+
+b1 = ca(7)
+b2 = ca(10)
+
+assert b1 = 7
+assert b2 = 10
+
+;"## Address of array element"
+
+p:adr
+
+p = a(3)
+b1 = p(0)		; see how the indexing changed to 0 based
+b2 = p(2)
+
+assert b1 = 3
+assert b2 = 5
+

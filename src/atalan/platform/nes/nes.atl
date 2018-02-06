@@ -1,0 +1,68 @@
+﻿;********************************
+;ATALAN NES Platform definition
+;********************************
+; changed by Marcel Cevani 03.01.2011
+; Generates NROM-128 romlayout (1 x 16Kib bank + 1 x 8Kib Chr bank)
+; changed by Marcel Cevani 31.01.2011
+; added System functions and some IN/OUT definitions
+; changed by Marcel Cevani 23.03.2011
+; added IN/OUT for Joypad state reading
+; tnx to Atalan the snake & rudla :)
+
+use m6502
+type  VARHEAP:000..255   
+rule prologue       =  "   opt h-" "   .byte('N', 'E', 'S', $1A, $02, $01,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00)" "   org $8000"  "RESET:" "   sei" "   cld" "   ldx #$FF" "   txs"
+rule epilogue       =  "   rts"  
+rule code_end       =  "   .align $FFF9,$00" "NMI:" "    rti" "   org $FFFA" "   .dw NMI" "   .dw RESET" "   .dw 0"
+rule line           = ";### %0(%1) %2"
+BIN_EXTENSION: "nes"
+
+;Define variable used by assembler routines.
+_TEMPB1:adr
+
+;------------------------------------------IN/OUT DEFINES FOR THE SYSTEM-MODULE-----------------------------------------
+
+;Information: Output Defines for Profiling code with the VirtuaNESprof mod, at this moment i cant find the url for the download location :(
+out CPU_PROF_START@$401e:byte
+out CPU_PROF_END@$401f:byte
+
+;Information: IN/OUT Defines for PPU chip (gfx chip)
+out PPU_REG1@$2000:byte
+out PPU_REG2@$2001:byte
+out PPU_OAM_ADR@$2003:byte
+out PPU_OAM_DATA@$2004:byte
+out PPU_SCROLL_POS@$2005:byte
+out PPU_DATA_ADR@$2006:byte
+out PPU_DATA@$2007:byte
+in  sequence PPU_STAT_REG@$2002:byte
+
+out INPUT_PAD1_RESET@$4016:byte
+out INPUT_PAD2_RESET@$4017:byte
+in  sequence INPUT_PAD1_READ@$4016:byte
+in  sequence INPUT_PAD2_READ@$4017:byte
+
+;New definitions for NES.
+
+ppu:scope =
+	out data_adr@$2006:byte
+	out data@$2007:byte
+	out ptr:0..$ffff
+	
+;To allow simple addressing like: ppu.adr = $23ff
+rule let ppu.ptr, %A:0..$ffff = instr
+	let ppu.data_adr, %A$1
+	let ppu.data_adr, %A$0
+
+;------------------------------------------IN/OUT DEFINES FOR THE SYSTEM-MODULE-----------------------------------------
+
+;--------------------------------------------FUNCTIONS FOR SYSTEM-MODULE---------------------------------------------
+;Information: In this timewindow, it is possible to change gfx, without notable glitches
+waitvbl:proc =
+		until PPU_STAT_REG bitand 128 <> 0 
+
+;Information: Use this Function to set the Display mode 
+; parameter : 1 ctrl Byte for PPU 1 REG , 2 ctrl Byte for PPU 2 REG
+setDisplayMode:macro(ctrl1:byte, ctrl2:byte) =
+			   PPU_REG1 = ctrl1
+			   PPU_REG2 = ctrl2
+

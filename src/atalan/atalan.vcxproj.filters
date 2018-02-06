@@ -1,0 +1,104 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="emit.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="instr.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="lexer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="optimize.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="parser.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="variables.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="type.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="errors.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="opt_blocks.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="opt_values.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="opt_live.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="mem_heap.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="opt_var_use.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="type_proc.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="var_set.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="opt_loops.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\common.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="translate.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="gen.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="bigint.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="opt_loop_shift.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="parse_type.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="var_int.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="opt_global.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="opt_live2.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="names.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="language.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="bigint.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

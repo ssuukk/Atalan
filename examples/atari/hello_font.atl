@@ -1,0 +1,11 @@
+﻿use atari
+
+;Define variable containing font, written in external file.
+const baloon:font = file "baloon.fnt"
+
+;Set the font.
+set'font baloon
+
+"Hello, World!"
+""
+"I am ATALAN, written in BALOON font!"

@@ -1,0 +1,3 @@
+Snake game
+by Jakub Krzak
+Katowice, August 2010

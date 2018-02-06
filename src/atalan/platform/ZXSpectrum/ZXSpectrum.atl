@@ -1,0 +1,81 @@
+﻿;***********************************************
+;ATALAN Sinclair ZX spectrum Platform definition
+;***********************************************
+
+use z80
+
+rule prologue = "   org 30000" "start"
+rule epilogue = "   ret"
+rule code_end = ""      
+rule line      = ";### %0(%1) %2"
+
+out ula@65535:0..255
+
+rule let ula, %A:0..255 = instr
+	let a, %A
+	let ula, a
+
+rule let ula, a = "   out (254), a"
+
+
+color: type = 0..7
+	black: 0
+	blue:  1
+	red: 2
+	magenta: 3
+	green: 4
+	cyan: 5
+	yellow: 6
+	white: 7
+
+border:macro c:color =
+	ula = c
+
+in out ATTR_P@23695:0..255	
+in out MASK_P@23696:0..255
+
+attr_flag: type = enum off:0 on:1 
+
+ink: macro c:color = 
+	ATTR_P = (ATTR_P bitand %11111000) bitor c 
+	MASK_P = (MASK_P bitand %11111000)
+		
+paper:macro c:color =
+	ATTR_P = (ATTR_P bitand %11000111) bitor (c * 3) 
+	MASK_P = (MASK_P bitand %11000111)
+	
+
+;2D array of video graphics attributes.
+
+in out attr@22528:array(0..31, 0..23) of byte
+
+in out screen@16384:array(0..31,0..191) of byte
+
+;Array index is defined in platform assembler file, so we supress generation of the index. 
+rule arrindex screen = ""
+ 
+;bright:macro c:attr_switch =
+
+;blink:macro c:attr_switch =
+ 			
+;rst16:proc
+
+;Call to procedure rst16 will emit rst instruction. 
+;rule call rst16 = "   rst 16"
+
+;Prevent generating declaration for ula register. Compiler thinks ula is normal
+;variable and would try to generate the declaration.
+rule vardef ula,65535 = ""
+
+;BIN_EXTENSION defines extension of the resulting binary file produced by compiler.
+BIN_EXTENSION: "tzx"
+
+;VARHEAP defines memory area that can be used by Atalan to allocate variables.
+type VARHEAP:29000..29999   
+
+;compiler rule defines the command line used to compile generated asm source
+; %A  defines name of the source code file (including the path) without extension
+; %B  extension of resulting binary as defined by platform
+; %/  defines path to directory with currently parsed file
+
+rule compiler %A,%B = "["]%/pasmo["] --tzxbas ["]%A.asm["] ["]%A.%B["]"

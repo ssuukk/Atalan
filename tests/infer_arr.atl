@@ -1,0 +1,16 @@
+;This test checks, that type inferencer is able to infer type for arrays.
+;Note, how it eventually deduces, that sum of the three array elements is
+;17.
+
+x:array(0..100) of 0..10
+
+x(10..30) = 5
+x(40..60) = 7
+
+b = x(10)
+assert b:5..5
+
+a = b + x(20) + x(50)
+
+assert a:17..17
+ 

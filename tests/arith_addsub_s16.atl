@@ -1,0 +1,14 @@
+;Test 16-bit bit signed arithmetics implementation
+
+out a',b':-1500..1500
+in a@a', b@b'
+
+a' =  937
+b' = -1300
+
+;=== add
+assert a + b = -363
+
+;=== sub signed vs. signed
+assert a - b = 2237
+;assert b - a = -2237

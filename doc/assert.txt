@@ -1,0 +1,22 @@
+﻿assert allows the programmer to declare some fact he knows about state of the
+program at given place.
+
+- asserts are used by type inferencer
+- assert should not have side effects, as it may get removed in release version
+  assert containg side-effect will emit warning
+- assert will write an exception including arguments used and terminate the program
+
+
+
+* claim 
+* declare
+
+
+- asserts print, but they are not considered side-effect
+
+
+Procedure has side effect if:
+
+- sets any non-local variable
+- reads from in-sequence variable
+- calls any procedure with side effect

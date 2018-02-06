@@ -1,0 +1,47 @@
+***************************
+ATALAN Console Z80 platform
+***************************
+
+::index::
+
+************
+Introduction
+************
+
+ConZ80 platform compiles programs that can be run on PC using conZ80 command.
+ConZ80 command is part of Atalan distribution.
+It executes the application by simulating the Z80 processor and writes
+output to standard output.
+
+It is mainly used for Atalan testing purposes.
+
+*****************
+Compiling program
+*****************
+
+Use -P conZ80 switch to compile console Z80 platform.
+
+For example
+::::::
+atalan -P conZ80 hello_world
+::::::
+
+ 
+*******************
+Basic memory layout
+*******************
+Code is generated from address $400.
+
+**********************
+Printing
+**********************
+
+All output is printed to standard output.
+
+********************
+Special instructions
+********************
+
+Output is implemented using OUT 0.
+
+Instruction $ED, $FE exits the interpreter.

@@ -1,0 +1,28 @@
+;********************************
+;ATALAN Atmos Platform definition
+;********************************
+
+;Define, which processor the platform uses.
+
+use m6502
+
+;prologue is emitted at the beginning of the generated assmbler file.
+;Here you can define header of output binary and the starting address of an application.
+rule prologue = "   opt f+ h-" "_CODE_START equ $800" "   org [b($16, $16, $16, $24, $00, $00, $80, $C7, >_CODE_END, <_CODE_END, >_CODE_START, <_CODE_START, $00, $00)],_CODE_START"
+
+;epilogue is emitted at the end of code. 
+rule epilogue = "   rts"
+
+;code_end is instruction emitted after the end of code.
+rule code_end = "_CODE_END equ *-1"     
+rule line      = ";### %0(%1) %2"
+
+;BIN_EXTENSION defines extension of the resulting binary file produced by compiler.
+BIN_EXTENSION: "tap"
+
+;VARHEAP defines memory area that can be used by Atalan to allocate variables.
+type VARHEAP:128..255   
+
+;LoRes screen
+
+out scrlo@$BB80:array(0..39,0..23) of byte

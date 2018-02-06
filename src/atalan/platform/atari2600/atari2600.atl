@@ -1,0 +1,27 @@
+;*************************************
+;ATALAN Atari 2600 Platform definition
+;*************************************
+
+;Define, which processor the platform uses.
+
+use m6502
+
+;prologue is emitted at the beginning of the generated assmbler file.
+;Here you can define header of output binary and the starting address of an application.
+rule prologue = "   opt f+ h-" "   org $F000" "Start" "   sei" "   cld" "   ldx #$FF" "   txs"
+
+;epilogue is emitted at the end of main procedure. 
+rule epilogue  = instr 
+	label __epil
+	goto __epil
+
+;code_end is instruction emitted after the end of code.
+rule code_end = "   org $FFFC" "   dta a(Start), a(Start)"     
+rule line      = ";### %0(%1) %2"
+
+;BIN_EXTENSION defines extension of the resulting binary file produced by compiler.
+BIN_EXTENSION: "bin"
+
+;VARHEAP defines memory area that can be used by Atalan to allocate variables.
+type VARHEAP:128..255   
+

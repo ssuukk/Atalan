@@ -1,0 +1,53 @@
+Currently we implement jump instructions using following opcodes:
+
+ifeq
+ifne
+ifle
+iflt
+ifge
+ifgt
+
+
+
+* Use relational insructions.
+
+Alternative way of implementing this is:
+
+** Compare instructions
+
+Compare instruction returns 1 if condition holds, 0 if it does not.
+
+eq
+ne
+le
+lt
+ge
+gt
+
+** Logical instructions.
+
+It may be usefull to support logical instructions AND, OR, NOT.
+
+** Jump instruction
+
+if <cond> goto <label>
+
+if (jump) instruction jumps to specified label if the variable in <cond> is non-zero.
+
+Unconditional jump may be implemented using 1 as condition.
+
+if 1 <label>
+
+Instruction reacting on flag may be implemented like:
+
+if C=1 goto <label>
+if C=0 goto <label>
+
+PROS
+
+- Jump instruction uses only 2 arguments (not 3 as with ifeq etc.)
+- We have comparison operators available, which should help us to implement depenedent types (for example)
+- more complex types of conditions may be eventually implemented (if a >= x AND a<= y) - for example CHK instruction on 68000
+
+
+

@@ -1,0 +1,64 @@
+***************************
+ATALAN ZX Spectrum platform
+***************************
+
+::index::
+
+************
+Introduction
+************
+
+This document describes standard ATALAN library for ZX Spectrum computers.
+
+***
+CPU
+***
+
+ZX Spectrum uses Z80 CPU.
+
+*******************
+Basic memory layout
+*******************
+
+Application starts at 30000.
+
+
+*****
+Print
+*****
+
+Print is implemented using rst 10h.
+
+******
+Colors
+******
+
+===============
+Color constants
+===============
+
+Colors are defined as follows:
+
+:::::::
+color: type = 0..7
+	black: 0
+	blue:  1
+	red: 2
+	magenta: 3
+	green: 4
+	cyan: 5
+	yellow: 6
+	white: 7
+:::::::
+
+===
+INK
+===
+
+Ink macro defines color used for printing.
+
+::::::::::::
+ink blue
+"Hello World"
+::::::::::
+

@@ -1,0 +1,42 @@
+﻿*******************
+ATALAN NES platform
+*******************
+
+::index::
+
+************
+Introduction
+************
+
+This document describes standard ATALAN library for NES game consoles.
+
+Compiler produces NES files, that can be directly used with FCEUX emulator.
+
+*****************
+Compiling program
+*****************
+
+Use -P nes switch to compile for NES platform.
+
+For example
+::::::
+atalan -P nes colorflip
+::::::
+
+ 
+*******************
+Basic memory layout
+*******************
+
+
+******
+Screen
+******
+
+**********************
+Printing
+**********************
+
+String printing is not supported yet. 
+
+

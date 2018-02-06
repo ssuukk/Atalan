@@ -1,0 +1,8 @@
+;Simple test for 2D array
+
+in d:array(0..31,0..99) of 0..255
+out d'@d
+
+d'(10,8) = 15
+
+assert d(10,8) = 15

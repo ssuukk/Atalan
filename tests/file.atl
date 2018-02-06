@@ -1,0 +1,8 @@
+
+const x:array (0..3) = file "file1.dat"
+
+assert x#0 = 0
+assert x#1 = 1
+assert x#2 = 2
+assert x#3 = 3
+

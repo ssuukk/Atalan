@@ -1,0 +1,320 @@
+;Unit testing program for ATALAN
+;Application will end with red border, if there is some error
+
+"Test started"
+
+"Byte unsigned arithmetics"
+
+x:0..255
+y:x
+z:0..255
+
+"  =",
+
+x = 10
+y = 3
+if x <> 10 goto fail
+
+",+",
+z = x + y 
+if z <> 13 goto fail
+
+z = z + 2
+if z <> 15 goto fail
+
+z = 3 + x
+if z <> 13 goto fail
+
+z = x + 4
+if z <> 14 goto fail
+
+",-",
+
+z = x - y
+if z <> 7 goto fail
+
+z = x - 4
+if z <> 6 goto fail
+
+z = 15 - x
+if z <> 5 goto fail
+
+z = z - 2
+if z <> 3 goto fail
+
+",*",
+
+z = x * y
+if z <> 30 goto fail
+
+z = x * 2
+if z <> 20 goto fail
+
+z = 3 * x
+if z <> 30 goto fail
+
+",/",
+
+z = x / 5
+if z<>2 goto fail
+
+z = x / y
+if z <> 3 goto fail
+
+z = 99 / y
+if z <> 33 goto fail
+
+",mod",
+
+z = x mod 4
+if z<>2 goto fail
+
+z = x mod y
+if z <> 1 goto fail
+
+z = 100 mod y
+if z <> 1 goto fail
+
+z = 99 mod y
+if z <> 0 goto fail
+
+",bitand",
+
+z = x bitand y				;%00001010,  %00000011
+if z<>2 goto fail
+
+z = x bitand 8
+if z<>8 goto fail
+
+z = 2 bitand x
+if z <> 2 goto fail
+
+",bitor",
+
+z = x bitor y				;%00001010,  %00000011
+if z<>11 goto fail
+
+z = x bitor 131
+if z<>139 goto fail
+
+z = 65 bitor x
+if z <> 75 goto fail
+
+",bitxor",
+
+z = x bitxor y				;%00001010,  %00000011
+if z<>9 goto fail
+
+z = x bitxor 131
+if z<>137 goto fail
+
+z = 67 bitxor x					;%00001010, %01000011
+if z <> 73 goto fail
+
+",bitnot"
+
+z = bitnot x
+if z <> 245 goto fail
+
+"Operator precedence"
+x = 3
+y = 4
+z = x * 2 + y
+if z <> 10 goto fail
+z = y + x * 2
+if z <> 10 goto fail
+z = x * 2 + y * 2
+if z <> 14 goto fail
+
+"Parentheses"
+z = 2 * (x + y)
+if z <> 14 goto fail
+
+"2-byte unsigned arithmetics"
+
+p:0..65535
+o:0..65535
+r:0..65535
+
+"  =",
+p = 10000
+o = 43    		;initializing with small constant
+x = 72
+
+if p <> 10000 goto fail
+if o <> 43 goto fail
+
+o = p		;assignment
+if o <> 10000 goto fail
+
+o = x		;assigning byte variable (extend)
+if o <> 72 goto fail
+
+o = 735
+if o <> 735 goto fail
+
+",+",
+
+r = p + o
+if r <> 10735 goto fail
+
+r = p + 5283
+if r <> 15283 goto fail
+
+r = 6284 + p
+if r <> 16284 goto fail
+
+",-",
+
+r = p - o
+if r <> 9265 goto fail
+
+r = p - 5000
+if r <> 5000 goto fail
+
+r = 25003 - p
+if r <> 15003 goto fail
+
+",*"
+
+x = 250			; byte * 2
+if x <> 250 goto fail		;to prevent optimizer
+
+r = x * 2
+if r <> 500 goto fail
+
+r = p * 2
+if r <> 20000 goto fail
+
+x = 100
+y = 5
+
+r = x * y
+if r <> 500 goto fail
+
+r = x * 7
+if r <> 700 goto fail
+
+r = 13 * x
+if r <> 1300 goto fail
+
+p = 100
+o = 315
+
+r = p * o
+if r <> 31500 goto fail
+
+r = o * 99
+if r <> 31185 goto fail
+
+"Blocks"
+x = 1
+z = 5
+
+;single line
+if x = 1 then z = 5
+
+;indent
+if z = 5
+	z = 6
+	x = 2
+
+;parentheses	
+if x = 2 (
+z = 7
+)
+	
+if z <> 7 goto fail
+
+;double indent
+
+if z = 7
+	if x = 2
+		x = 3
+
+if x <> 3 goto fail
+
+"If Then Else"
+
+x = 1
+
+;else (true branch)
+if x = 1
+	z = 2		;<-- EXECUTE THIS
+else
+	z = 3
+	
+if z <> 2 goto fail
+
+;else (false branch)
+x = 2
+
+if x = 1
+	z = 2
+else
+	z = 3
+	
+if z <> 3 goto fail
+
+;else if
+z = 0
+x = 1
+
+if x = 1
+	z = 2		;<--
+else if x = 2
+	z = 3
+else if x = 3
+	z = 4
+else
+	z = 5
+
+if z <> 2 goto fail
+
+x = 2
+
+if x = 1
+	z = 2
+else if x = 2
+	z = 3		;<--
+else if x = 3
+	z = 4
+else
+	z = 5
+
+if z <> 3 goto fail
+
+x = 3
+if x = 1
+	z = 2
+else if x = 2
+	z = 3
+else if x = 3
+	z = 4		;<--
+else
+	z = 5
+if z <> 4 goto fail
+
+x = 4
+if x = 1
+	z = 2
+else if x = 2
+	z = 3
+else if x = 3
+	z = 4
+else
+	z = 5		;<--
+if z <> 5 goto fail
+
+;If we got here, everything went ok
+""
+"*** OK ***"
+goto done
+
+;Jump here, if some unexpected result has been detected.
+fail@
+""
+"*** Failure! ***"
+COLOR0(4) = $25	
+
+done@

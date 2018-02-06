@@ -1,0 +1,38 @@
+﻿;**********************************
+;ATALAN Console 6502 Platform definition
+;**********************************
+
+use m6502
+
+;Console application stores load address as first two bytes of file
+rule prologue = "   opt f+ h-" "_CODE_START equ $400" "   org [a(_CODE_START)],_CODE_START"
+
+;epilogue is emitted at the end of code.
+;We emit special exit instruction $ef 
+rule epilogue = "   dta b($ef)"
+
+;code_end is instruction emitted after the end of code.
+rule code_end = "_CODE_END equ *-1"     
+rule line      = ";### %0(%1) %2"
+
+;BIN_EXTENSION defines extension of the resulting binary file produced by compiler.
+BIN_EXTENSION: "c65"
+
+;VARHEAP defines memory area that can be used by Atalan to allocate variables.
+type VARHEAP:128..255 or 512..1023  
+
+
+;Support for ASSERT "expected" command.
+
+;system.assert_printchar:system.printchar
+
+system.assert_print_asm:proc @cpu.x @cpu.a @cpu.y
+
+system.print_assert:macro = instr call system.assert_print_asm
+
+system.assert:macro = instr call system.print_out
+
+rule assert_begin = ";assert begin"
+rule assert_end   = ";assert end"
+
+rule assert       = "   dta b($cf)"

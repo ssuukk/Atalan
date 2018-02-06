@@ -1,0 +1,40 @@
+******************
+Compiler internals
+******************
+
+
+***************************************
+Procedure arguments and local variables
+***************************************
+
+Procedure arguments and local variables are allocated as global variables.
+
+When calling procedure, arguments are simply stored in appropriate variables and
+procedure is called. On return, procedure results are loaded from output variables.
+
+Atalan will assign same memory address to two or more procedure variables, 
+if there is no conflict. (i.e. they do not call each other mutually).
+Atalan will even use space for one big variable as space for multiple smaller variables
+or try to merge space for multiple smaller variables to space for one bigger variable.
+
+Atalan will try to assign hardware registers as procedure arguments.
+
+On call:
+
+1. for each argument: Calculate argument value and store it to temporary variable (if the argument is not constant or simple variable)
+2. load register arguments into registers (only simple loads are used)  
+
+On procedure entry:
+
+1. all register arguments are stored into temporary local variables
+   Optimizer will remove these variables and the store if it is unnecessary.
+
+
+********************
+2-dimensional arrays
+********************
+
+Atalan will create index of rows for 2-dimensional arrays, to provide fast access
+to element x,y.
+
+     

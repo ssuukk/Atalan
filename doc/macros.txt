@@ -1,0 +1,23 @@
+;Compiler macros
+;These macros define available operators.
+
+;We define some basic macro types (binary operator, relational operator etc.,
+;so we do not need to repeat the definition again and again.
+
+;binary:macro(a b r)   ; it is possible to enclose the arguments to parenthesis
+;relop:macro a b lbl	  ; but it is optional
+
+;Operator macros map the operators to compiler instructions.
+;Compiler instructions are sort of pseudo machine language
+
+;Arithmetic operators
+;Note, how the @ defines operator priority.
+;It is possible only for macros, for procedures @ defines address of the procedure.
+
+;"+"@4:binary      = #add r,a,b
+;"-"@4:binary      = #sub r,a,b
+;"*"@10:binary     = #mul r,a,b
+;"/"@10:binary     = #div r,a,b
+;"("@1:macro		  = #begin
+;")"@1:macro		  = #end
+ 

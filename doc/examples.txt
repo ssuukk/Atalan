@@ -1,0 +1,6 @@
+***********************
+Atalan examples
+***********************
+
+Examples on this page are for ATARI platform. Resulting XEX files may be run
+on emulator.

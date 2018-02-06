@@ -1,0 +1,8 @@
+﻿;Atalan 2-byte array test
+
+a:array(0..100) of 0..4000
+
+for i:0..100 a#i = 3745
+
+assert a#15 = 3745
+

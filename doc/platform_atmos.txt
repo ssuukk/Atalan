@@ -1,0 +1,48 @@
+*********************
+ATALAN Atmos platform
+*********************
+
+::index::
+
+************
+Introduction
+************
+
+This document describes standard ATALAN library for Oric Atmos computers.
+The support for Atmos is at the very beginning, Atalan can however already
+compile applications that can be run on Atmos.
+
+Compiler produces TAP files, that can be directly used with emulator.
+
+*****************
+Compiling program
+*****************
+
+Use -P atmos switch to compile for atmos platform.
+
+For example
+::::::
+atalan -P atmos atmos_hello
+::::::
+
+ 
+*******************
+Basic memory layout
+*******************
+
+Application starts at $800.
+
+Variables are placed in zero page starting from address 128.
+
+
+******
+Screen
+******
+
+**********************
+Printing
+**********************
+
+String printing is not supported yet. 
+
+

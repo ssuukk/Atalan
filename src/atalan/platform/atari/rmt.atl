@@ -1,0 +1,40 @@
+﻿;********************************
+;Raster Music Tracker
+;********************************
+
+param STEREOMODE:0..3 = 0
+param GLOBALVOLUMEFADE:bool = true 
+
+;We are probably not going to use the addresses directly,
+;but we need to declare the variable with structure to
+;alloc the space for RMT variables.
+
+rmt_vars:struct
+	p_tis:adr
+	p_instrstable:adr
+	p_trackslbstable:adr
+	p_trackshbstable:adr
+	p_song:adr
+	ns:card
+	nr:card
+	nt:card
+	reg1:byte
+	reg2:byte
+	reg3:byte
+	tmp:byte		
+	cmd2:byte ;may be optional (IFT FEAT_COMMAND2)
+	rmt_offset:card
+
+rmt_init:proc module@(cpu.x,cpu.y):adr track@cpu.a @cpu.a @cpu.x @cpu.y @rmt_vars
+rmt_play:proc @cpu.a @cpu.x @cpu.y
+rmt_silence:proc @cpu.a @cpu.x @cpu.y
+
+music'init:macro(module:adr track:byte = 0) =
+	rmt_init module track
+
+music'play:macro =
+	rmt_play
+
+music'off:macro =
+	rmt_silence
+		                          

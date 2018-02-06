@@ -1,0 +1,19 @@
+﻿Assignment variants
+
+name : type = value
+
+
+name:0..30 = 13  -- define variable with range 0..30, initial value 13
+
+name:0..30  -- declare variable with specified type (number in the range 0..30)
+
+name: 13    -- defines constant (variable with possible value range 13..13)
+
+name = 13   -- set the value of variable to 13
+
+name := 30  -- declare new variable without specifying it's type, assign it initial value of 30
+
+name: x * 30  -- the value is not known at compile time, it is not possible to assign different value to it later
+
+name = 0..30  -- name contains value of range type
+

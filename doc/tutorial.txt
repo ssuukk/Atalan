@@ -1,0 +1,45 @@
+﻿***************
+Atalan tutorial
+***************
+
+This tutorial will use just basic printing, so the examples do not specify
+a platform to use. To compile the examples for the platform you prefer,
+use -p switch on command line.
+
+If you have no software to run the compiled examples, use con6502 platform.
+
+The first application, we are always obliged to write in a new language is "Hello World!".
+So here it is:
+
+:::::::::::::::::::::::
+"Hello, World!"
+""
+"I'm Atalan."
+:::::::::::::::::::::::
+
+That was easy :-) Atalan prints any text in double quotes (string) to display on
+separate line.
+What does it mean to print a text depends on a platform, we use, 
+but generally, result should be simmilar. 
+
+If you write variable name enclosed in square brackets inside string, it's
+contents will be printed.
+
+:::::::::::::::::::::::::::::::::::
+a = 10
+b = 20
+c = a + b
+"Sum of [a] and [b] is [c]."
+:::::::::::::::::::::::::::::::::::
+
+Note, that is is not necessary to declare variables. Type of variable is
+inferred from the expressions.
+
+You can use expressions directly in print command.
+
+:::::::::::::::::::::::::::::::::::
+a = 10
+b = 20
+"Sum of [a] and [b] is [a + b]."
+:::::::::::::::::::::::::::::::::::
+

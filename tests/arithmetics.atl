@@ -1,0 +1,164 @@
+﻿;Arithmetic testing
+use con6502
+
+;To prevent compiler from optimizing our test code out, we must
+;declare one variable as out and another at the same address as in.
+;This way we get variables with known value without compiler knowing the
+;same.
+
+;===== Unsigned arithmetics
+
+;7-bit unsigned variables 
+out u7w1@10, u7w2@11:0..100
+in  u7r1@10, u7r2@11:0..100
+
+out u8w1:0..255
+in  u8r1@u8w1:0..255
+
+in out u8:0..255
+
+;2-byte unsigned variables
+
+out u11w1@200, u11w2@202:0..5000
+in  u11r1@200, u11r2@202:0..5000
+
+out s14w1@207, s14w2@209:-8192..8191
+in  s14r1@207, s14r2@209:-8192..8191
+
+in out u16:0..65535
+in out s16:-32768..32767
+
+;----- Addition
+u7w1,u7w2 = 100,27
+u8 = u7r1 + u7r2
+assert u8 = 127
+
+u16 = u7r1 + u7r2
+assert u16 = 127
+
+;2-byte unsigned addition
+
+u11w1,u11w2 = 1234,4321
+
+u16 = u11r1 + u11r2
+assert u16 = 5555
+
+;1-byte + 2-byte
+u11w1,u7w1 = 1234,100
+u16 = u11r1 + u7r1
+assert u16 = 1334
+
+;u16 = u8 + u16
+u11w1,u7w1 = 1334,99
+u16 = u7r1 + u11r1
+assert u16 = 1433
+
+;**** Signed arithmetics
+
+out s6w1@204, s6w2@205:-64..63
+in  s6r1@204, s6r2@205:-64..63
+
+out s8w1@206, s8w2:-128..127
+in  s8r1@206, s8r2@s8w2:-128..127
+
+in out s8:-128..127
+
+;Addition
+s6w1,s6w2 = -35, -60
+s8 = s6r1 + s6r2
+assert s8 = -95
+
+s6w1,s6w2 = -35, 60
+s8 = s6r1 + s6r2
+assert s8 = 25
+
+s6w1,s6w2 = 35, 60
+s8 = s6r1 + s6r2
+assert s8 = 95
+
+s6w1,s6w2 = 60, -35
+s8 = s6r1 + s6r2
+assert s8 = 25
+
+;s16 = s8 + s8
+
+s8w1,s6w2 = -128, -30
+s16 = s8r1 + s6r2
+assert s16 = -158
+
+s8w1,s6w2 = 127, -30
+s16 = s8r1 + s6r2
+assert s16 = 97
+
+s6w1,s8w1 = -30, 127
+s16 = s8r1 + s6r2
+assert s16 = 97
+
+s8w1,s8w2 = 127, 127
+s16 = s8r1 + s8r2
+assert s16 = 254
+
+;Addition s16 = s16 + s8
+
+s8w1,s14w1 = -128, -4500
+s16 = s8r1 + s14r1
+assert s16 = -4628
+
+s8w1,s14w1 = -126, -4600
+s16 = s14r1 + s8r1
+assert s16 = -4726
+
+s8w1,s14w1 = 126, -4600
+s16 = s14r1 + s8r1
+assert s16 = -4474
+
+s8w1,s14w1 = 121, 3251
+s16 = s8r1 + s14r1
+assert s16 = 3372
+
+;Addition s16 = s16 + s16
+
+s14w1,s14w2 = -3012, -1599
+s16 = s14r1 + s14r2
+assert s16 = -4611  
+
+;s16 = s16 + u8
+
+s14w1,u8w1 = -7324, 72
+s16 = s14r1 + u8r1
+assert s16 = -7252
+
+s14w1,u8w1 = -2846, 72
+s16 = u8r1 + s14r1
+assert s16 = -2774
+
+s14w1,u8w1 = 293, 72
+s16 = s14r1 + u8r1
+assert s16 = 365
+
+;Addition s16 = u16 + s8
+
+u11w1,s8w1 = 4903, -117
+s16 = u11r1 + s8r1 
+assert s16 = 4786 
+
+u11w1,s8w1 = 101, -117
+s16 = u11r1 + s8r1 
+assert s16 = -16 
+
+;Substraction
+
+;Signed vs. signed
+
+s6w1,s6w2 = 30, 35
+s8 = s6r1 - s6r2
+assert s8 = -5
+
+s6w1,s6w2 = 30, -35
+s8 = s6r1 - s6r2
+assert s8 = 65
+
+s6w1,s6w2 = -64, 63
+s8 = s6r1 - s6r2
+assert s8 = -127
+

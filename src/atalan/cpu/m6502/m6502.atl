@@ -1,0 +1,2317 @@
+﻿;ATALAN definitions for 6502 CPU
+
+type
+   byte:0..255
+   card:0..65535
+   int:-32768..32767
+   long:0..$ffffff
+   sbyte:-128..127
+   byte1:byte or sbyte
+   byte2:card or int
+   byte1arr:array(card) of byte1
+   _byte1arr2D:array(card,card) of byte1
+
+;==============================
+;Definition of type allocations
+;==============================
+
+;rule alloc %A:0..255  = ".ds 1"
+
+rule alloc %A:struct()                         	 = "   .ds %A.size"
+rule alloc %A:array(%B:card) of byte1            = "   .ds %B.count"
+rule alloc %A:byte                               = "   .ds 1"
+rule alloc %A:card                               = "   .ds 2"
+rule alloc %A:long                               = "   .ds 3"
+rule alloc %A:-128..127                          = "   .ds 1"
+rule alloc %A:int                                = "   .ds 2"
+;rule alloc %A:-8388607..8388607                  = "   .ds 3"
+
+;=============================================
+; CPU definition
+; 
+; Processor registers and macros are defined.
+;=============================================
+
+CPU:scope =
+	a:0..255
+	x,y:0..255
+	c,z,v,n,d:0..1	
+	ac@(a,c)
+	ca@(c,a)
+	azn@(a,z,n)
+	aczn@(a,c,z,n)
+	xzn@(x,z,n)
+	yzn@(y,z,n)
+	as@(a,c,z,n,v)	; this is set of flags used for result of adc, sbc
+	cznv@(c,z,n,v)
+	czn@(c,z,n)	
+	in void:0..255  ;This is special variable used to implement touch instructions.
+	zn@(z,n)
+	znv@(z,n,v)
+	xy@(x,y)
+
+	type memory:array(0..$ffff) of 0..255
+	s8:type = -128..127
+	s16:type = -32768..32767
+	s24:type = -8388607..8388607  
+		
+	;Definition of the more common 6502 instructions as macros, so the code is more readable 
+	lda:macro o = instr let a, o
+	ldx:macro o = instr let x, o
+	ldy:macro o = instr let y, o
+	sta:macro o = instr let o, a
+	stx:macro o = instr let o, x
+	sty:macro o = instr let o, y
+
+	clc:macro = instr let c, 0
+	sec:macro = instr let c, 1	
+
+	cld:macro = instr let d, 0
+	sed:macro = instr let d, 1	
+
+	adc:macro o = instr add ca, a+c, o 
+	sbc:macro o = instr sub as, ac, o 
+	inx:macro = instr add x, x, 1
+	iny:macro = instr add y, y, 1
+	dex:macro = instr sub x, x, 1
+	dey:macro = instr sub y, y, 1
+	inc:macro o = instr add o, o, 1
+	dec:macro o = instr sub o, o, 1
+
+	lsr:macro (o=a) = instr div o, o, 2  
+	asl:macro (o=a) = instr mul o, o, 2  
+	ror:macro (o=a) = instr rotr (o,c), (o,c), 1  
+	rol:macro (o=a) = instr rotl (o,c), (o,c), 1  
+
+	tax:macro = instr let x,a
+	tay:macro = instr let y,a
+	txa:macro = instr let a,x
+	tya:macro = instr let a,y
+
+	bcc:macro lb = instr ifeq lb, c, 0
+	bcs:macro lb = instr ifeq lb, c, 1
+	bne:macro lb = instr ifeq lb, z, 0
+	beq:macro lb = instr ifeq lb, z, 1
+	bpl:macro lb = instr ifeq lb, n, 0
+	bmi:macro lb = instr ifeq lb, n, 1
+	bvc:macro lb = instr ifeq lb, v, 0
+	bvs:macro lb = instr ifeq lb, v, 1
+
+	cmp:macro o  = instr sub cznv, a, o
+	cpx:macro o  = instr sub cznv, x, o
+	cpy:macro o  = instr sub cznv, y, o
+			
+type
+	byte2a:byte2 or adr
+
+rule alloc %A:adr = "   .ds 2"
+
+;========================
+;Temporary variables
+;========================
+
+;_stdbuf is used to format decimal numbers. Therefore it must be as big as number of decimal
+;digits in biggest supported number.
+;We do not assign an address to the buffer, so platform may set the address 
+;of the buffer using _stdbuf@<adr>. If it will not, compiler will assign the address. 
+
+system.buf:array(0..15) of byte
+_arr:adr
+system.putchr_proc_adr:adr of proc			;address of print procedure
+
+;TODO: Temporary variables should be allocated dynamically
+_TEMPW1@$32:CARD
+_TEMPW2@$34:CARD
+_TEMPL1@$70:CARD		;Should be: 0..$7fffffff
+
+;Compiler macros
+;These macros define available operators.
+
+;We define some basic macro types (binary operator, relational operator etc.,
+	;so we do not need to repeat the definition again and again.
+
+;binary:macro(a b r)   ; it is possible to enclose the arguments to parenthesis
+;relop:macro a b lbl	  ; but it is optional
+
+;Operator macros map the operators to compiler instructions.
+;Compiler instructions are sort of pseudo machine language
+
+;Arithmetic operators
+;Note, how the @ defines operator priority.
+;It is possible only for macros, for procedures @ defines address of the procedure.
+
+;"+"@4:binary      = #add r,a,b
+;"-"@4:binary      = #sub r,a,b
+;"*"@10:binary     = #mul r,a,b
+;"/"@10:binary     = #div r,a,b
+;"("@1:macro		  = #begin
+;")"@1:macro		  = #end
+ 
+;Compiler transformation rules
+;  
+;There rules operate on list of compiler instructions and prepare them
+;for emitting instructions.
+;
+;If the part before = matches input instructions, instructions from the right
+;size od the rule are generated to output.
+;
+;Matching rules:
+;  name		Variable name, input rule must reference same variable (register)
+;  :type    Argument or result must match the type
+;  @        Argument must be variable (not constant)
+;  <int>    Integer constant - concrete value is matched
+;
+;Output arguments:
+;   %0		Result
+;   %1  argument 1 
+;   %2  argument 2
+
+;TODO: Rule for add 0, mul 1, div 1, sub 0
+
+;type long:0..$7fffffff
+
+;*********** Let
+
+rule let %A:byte, %B:byte = instr
+  lda %B
+  sta %A
+   
+;signed byte assignment
+;We cannot use byte1 to define this, as we do not allow assigning from signed to unsigned and vice versa
+rule let %A:sbyte, %B:sbyte = instr
+  lda %B
+  sta %A
+
+;===== Signed 2-bytes (s16)
+
+rule let %A:int,%B:int = instr
+  let a, %B$0
+  let %A$0,a
+  let a, %B$1
+  let %A$1,a
+
+;s16 = s8  (we must sign extend the byte)
+rule let %A:int, %B:sbyte = instr
+	let x, 0
+	let a, %B
+	ifeq _positive, n, 0
+	dex
+	label _positive
+	let %A$0, a
+	let %A$1, x
+
+rule %A:s16 = %B:s24 = instr
+	lda %B$0
+	sta %A$0
+	lda %B$1
+	sta %A$1
+		  	
+;======= Array of addresses
+
+rule let %A:byte1, %B:adr(%C:byte) = instr
+	ldy %C
+	let a, @%B$y
+	let %A, a
+
+rule let %B:adr(%C:byte), %A:byte1 = instr
+	let a, %A
+	ldy %C
+	let @%B$y, a
+
+rule let_adr %A:adr, %B:adr(const %C) = instr
+	lo  %Z, %C
+	let a, %B$0
+	clc
+	adc %Z
+	let %A$0, a
+	hi  %Z, %C
+	let a, %B$1
+	adc %Z
+	let %A$1, a
+
+rule let_adr %A:adr, %B:adr(%C:byte) = instr
+	let a, %B$0
+	clc
+	adc %C
+	let %A$0, a
+	let a, %B$1
+	adc 0
+	let %A$1, a
+
+  
+;======== Array (byte index, byte value)
+;We use indexing using X register.
+;Optimizer may later change it to Y.
+
+rule let %A:byte1arr(const %B),%C:byte  = instr
+	lda %C
+	mul %Z, %B, %A.step
+	sta %A$%Z      ;with constant, we do not need to load index register X
+
+;Accessing one dimensional array using constant is optimized to direct access.
+rule let %A:byte1,%B:byte1arr(const %C) = instr
+	mul %Z, %C, %B.step
+	let a,%B$%Z
+	let %A, a
+
+;Access to low or high byte of card
+;rule let %A:byte2(const %B:byte), %C:byte = instr
+;  lda %C
+;  sta %A$%B      ;with constant, we do not need to load index register X
+  
+;Prevent compiler from generation extra code, when we are already assigning a register.
+
+rule let a,%A:byte1arr(%B:byte-const %D) = instr
+	lda %B
+	mul a, a, %A.step
+	tax
+	lda %A$(x-%D)
+
+rule let %A:byte1arr(%B:byte-const %D), a = instr
+	tay 
+	let a, %B
+	mul a, a, %A.step
+	tax 
+	tya
+	let %A$(x-%D),a
+
+rule let %A:byte1arr(%B:byte - const %D),%C:byte1 = instr
+	let a, %B
+	mul a, a, %A.step
+	tax
+	let a,%C
+	let %A$(x-%D),a
+
+rule let %A:byte1,%B:byte1arr(%C:byte - const %D) = instr
+	let a, %C
+	mul a, a, %B.step
+	let x, a
+	let a,%B$(x-%D)
+	let %A, a
+ 		
+;rule let %A:byte1,%B:byte1arr(%C:byte) = instr 
+;	let a, %C
+;	mul a, a, %B.step
+;	let x, a
+;	let a,%B$x
+;	let %A, a
+
+rule let_adr %A:adr, %B:byte1arr(%D:byte-const %E) = instr
+	lo a, %B(%D-%E)
+	let %A$0, a
+	hi a, %B(%D-%E)
+	let %A$1, a
+
+;======= Array of 2-byte values
+
+type arr_2b:array(byte) of card
+
+;var instruction declares variable (possibly as local in specified var)
+
+rule decl %A:arr_2b = instr
+	decl %A.lo:array(%A.idx) of byte
+	decl %A.hi:array(%A.idx) of byte
+
+rule let %A:arr_2b(%B:byte-const %C), %D:card = instr
+	ldx %B
+	lda %D$0
+	sta %A.lo$(x-%C)
+	lda %D$1
+	sta %A.hi$(x-%C)
+
+rule let %D:card, %A:arr_2b(%B:byte-const %C) = instr
+	ldx %B
+	lda %A.lo$(x-%C)
+	sta %D$0
+	lda %A.hi$(x-%C)
+	sta %D$1
+		 
+;======= Array(0..255) of array(0..255) of byte1 (is simmilar to 2D array, but x & y are not switched)
+
+type arr_of_arr:array(byte) of array(byte) of byte1
+
+rule alloc %A:array(%B:byte) of array(%C:byte) of byte1 = "   .ds %B.count*%C.count"
+rule arrindex %A:array(%B:byte) of array(%C:byte) of byte1    = "%A_lo:  :%B.count dta l(%A + #*%C.count)" "%A_hi:  :%B.count dta h(%A + #*%C.count)"
+
+rule let %A:arr_of_arr(%B:byte)(%C:byte), %D:byte1 = instr
+	ldy %B
+	lo a, %A$y			;this accesses lower byte of array of pointers
+	let _arr$0, a
+	hi a, %A$y
+	let _arr$1, a
+	ldy %C
+	let a, %D
+	let @_arr$y, a
+
+rule let_adr %D:adr, %A:arr_of_arr(%B:byte)(%C:byte) = instr
+	ldy %C
+	lo a, %A$y
+	clc
+	adc %B
+	let %D$0, a
+	hi a, %A$y
+	adc 0	
+	let %D$1, a
+
+rule let_adr %D:adr, %A:arr_of_arr(%B:byte) = instr
+	ldy %B
+	lda %A.index_lo$y
+	sta %D$0
+	lda %A.index_hi$y
+	sta %D$1
+	 
+;======= array(0..255) of array(0..127) of byte2
+
+type arr_of_arr2:array(0..255) of array(0..127) of byte2
+
+rule alloc %A:array(%B:0..255) of array(%C:0..127) of byte2 = "   .ds %B.count*%C.count*2"
+rule arrindex %A:array(%B:0..255) of array(%C:0..127) of byte2    = "%A_lo:  :%B.count dta l(%A + #*%C.count*2)" "%A_hi:  :%B.count dta h(%A + #*%C.count*2)"
+
+rule let %A:arr_of_arr2(%B:0..255)(%C:0..127), %D:byte2 = instr
+	ldy %B
+	lo a, %A$y			;this accesses lower byte of array of pointers
+	let _arr$0, a
+	hi a, %A$y
+	let _arr$1, a
+	lda %C
+	asl
+	tay
+	let a, %D$0
+	let @_arr$y, a
+	iny
+	let a, %D$1
+	let @_arr$y, a
+
+rule let %D:byte2, %A:arr_of_arr2(%B:0..255)(%C:0..127)  = instr
+	ldy %B
+	lo a, %A$y			;this accesses lower byte of array of pointers
+	let _arr$0, a
+	hi a, %A$y
+	let _arr$1, a
+	lda %C
+	asl
+	tay
+	lda @_arr$y
+	sta %D$0
+	iny
+	lda @_arr$y
+	sta %D$1
+
+;rule let_adr %D:adr, %A:arr_of_arr(%B:0..255)(%C:0..127) = instr
+;	ldy %C
+;	hi x, %A$y	
+;	lo a, %A$y
+;	clc
+;	adc %B
+;	let %D$0, a
+;	hi a, %A$y
+;	adc 0	
+;	let %D$1, a
+
+;======= 2D byte array
+	
+;2D Array (2x byte index, byte value)
+;We use indexing using Y register.
+
+rule alloc %A:array(%B:byte,%C:byte) of byte1   = "   .ds %C.count*%B.count"
+
+rule arrindex %A:array(%B:byte,%C:byte) of byte1    = "%A_lo:  :%C.count dta l(%A + #*%B.count)" "%A_hi:  :%C.count dta h(%A + #*%B.count)"
+
+rule let %A:_byte1arr2D(%B:byte, %C:byte), %D:byte = instr
+	ldy %C
+	lo a, %A$y			;this accesses lower byte of array of pointers
+	let _arr$0, a
+	hi a, %A$y
+	let _arr$1, a
+	ldy %B
+	let a, %D
+	let @_arr$y, a	
+
+rule let %D:byte, %A:_byte1arr2D(%B:byte, %C:byte)  = instr
+	ldy %C
+	lo a, %A$y
+	let _arr$0, a
+	hi a, %A$y
+	let _arr$1, a
+	ldy %B
+	let a, @_arr$y	
+	let %D, a
+
+rule let_adr %D:adr, %A:_byte1arr2D(%B:byte,%C:byte) = instr
+	ldy %C
+	lo a, %A$y
+	clc
+	adc %B
+	let %D$0, a
+	hi a, %A$y
+	adc 0	
+	let %D$1, a
+
+;=========== Init
+
+;Convert 2-byte const to 1-byte
+rule let %A:byte, const %B:card = instr
+	lo a, %B
+	let %A, a
+
+rule let %A:card,const %B:card = instr
+  lo  %Z, %B
+  let a, %Z
+  let %A$0,a
+  hi  %Z, %B
+  let a, %Z
+  let %A$1,a
+
+;int <- byte,  card <- byte
+rule let %A:byte2, %B:byte = instr
+	let a,%B
+	let %A$0, a
+	let a, 0
+	let %A$1, a
+
+;Convert 2-byte variable to 1-byte
+;TODO: This is LO !!!!!
+rule let %A:byte, %B:card = instr
+	let a, %B$0
+	let %A, a
+
+;TODO: We should add adr to byte2, this would remove the necessity for 3 of following 4 rules
+rule let %A:byte2,%B:byte2   = instr
+  let a,%B$0
+  let %A$0,a
+  let a,%B$1
+  let %A$1,a
+
+rule let %A:adr, %B:adr = instr
+  let a, %B$0
+  let %A$0, a
+  let a, %B$1
+  let %A$1, a
+
+rule let %A:adr, %B = instr
+  lo a, %B
+  let %A$0, a
+  hi a, %B
+  let %A$1, a
+
+rule let %A:card, %B:adr = instr
+  let a, %B$0
+  let %A$0, a
+  let a, %B$1
+  let %A$1, a
+
+
+rule let %A:card, a = instr
+	let %A$0, a
+	let %A$1, 0
+
+;---- Tuples
+
+rule let (%A:byte1, %B:byte1), const %C:byte2a  = instr
+	lo %A, %C
+	hi %B, %C
+
+rule let %A:byte2a, (%B:byte1, %C:byte1) = instr
+	let %A$0, %B
+	let %A$1, %C
+	
+rule let (%A:byte1, %B:byte1), %C:byte2a  = instr
+	let %A, %C$0
+	let %B, %C$1
+
+rule let (%A:byte1, %B:byte1), (%C:byte1, %D:byte1)  = instr
+	let %A, %C
+	let %B, %D
+
+rule let_adr (%A:byte1, %B:byte1), %D = instr
+  let_adr %A, %D$0
+  let_adr %B, %D$1
+ 
+;Extracting lower/higher part of tuple
+
+rule lo a, (%A:byte1, %B) = instr let a, %A
+rule hi a, (%A, %B:byte1) = instr let a, %B
+
+;===== Long
+rule let %A:long,const %B:long = instr
+  lo %Z, %B
+  let a,%Z
+  let %A$0,a
+  hi %Z, %B 
+  let a,%Z 
+  let %A$1,a
+  div %Z,%B,$FFFF   ; highest byte
+  and %Z, %Z, $FF  
+  let a,%Z
+  let %A$2,a
+
+;===== Byte array with 2 byte index
+
+rule let %C:byte1arr(%D:card), %A:byte = instr
+  let_adr a, %C$0
+  let _arr$0, a
+  let_adr a, %C$1
+  clc
+  adc  %D$1
+  let _arr$1, a
+  ldy %D$0
+  let a,%A
+  let @_arr$y, a  
+
+rule let %C:byte1arr(%D:card), a = instr
+  let x,a
+  let_adr a, %C$0
+  let _arr$0, a
+  let_adr a, %C$1
+  clc
+  adc  %D$1
+  let _arr$1, a
+  ldy %D$0
+  let a,x
+  let @_arr$y, a  
+
+rule let %A:byte, %C:byte1arr(%D:card)  = instr
+  let_adr a, %C$0
+  let _arr$0, a
+  let_adr a, %C$1
+  clc
+  adc  %D$1
+  let _arr$1, a
+  ldy %D$0
+  let a, @_arr$y  
+  let %A,a
+
+;******** Let_adr
+
+rule let_adr %A:adr, %B = instr
+  let_adr a, %B$0
+  let %A$0, a
+  let_adr a, %B$1
+  let %A$1, a
+
+;*********** Lo
+
+rule lo %A, %B = instr
+  lo a, %B  
+  let %A, a
+
+rule lo a, %A:byte2 = instr
+	let a, %A$0
+
+
+;*********** Hi
+
+rule hi %A, %B = instr
+  hi a, %B
+  let %A, a
+
+
+;*********** Add
+
+;TODO: Unnecessary? This is directly one instruction.
+
+rule add %A:byte1arr(%B - const %D), %A(%B-%D), 1 = instr
+	inc %A$(%B-%D)
+	
+;TODO: ldx %B inx stx %A	
+rule add %A:byte1, %B:byte1, 1 = instr
+	lda %B
+	sta %A
+	inc %A
+
+;u8 = u8 + u8
+;s8 = s8 + s8
+;s8 = u8 + s8
+rule add %A:byte1, %B:byte1, %C:byte1 = instr
+  let a,%B 
+  clc
+  adc %C
+  let %A,a
+  
+rule add %A:byte, %B:card, %C:byte = instr
+  lda %B$0
+  clc
+  adc %C
+  sta %A
+  
+rule add ca, a+c, %A:byte1arr(%B:byte - const %D) = instr
+	ldx %B
+	clc
+	adc %A$(x-%D)
+
+rule add %A:byte1arr(%B:byte - const %I),%C:byte1arr(%D:byte - const %J),%E:byte1arr(%F:byte - const%K) = instr
+	lda %C(%D - %J)
+	clc
+	adc %E(%F - %K)
+	sta %A(%B - %I)
+
+rule add %A:byte1arr(%B:byte - const %E),%C:byte,%D:byte = instr
+	lda %C
+	clc
+	adc %D
+	ldx %B
+	sta %A$(x-%E)
+
+;rule add %A:byte1arr(%B:byte - const %E),%C:byte,%D:byte = instr
+;	let a,%C
+;	clc
+;	adc %D
+;	let x,%B
+;	let %A$(x-%E),a
+
+rule add %A:byte,%B:byte1arr(%C:byte - const %E),%D:byte = instr
+	ldx %C
+	lda %B$(x-%E)
+	clc
+	adc %D
+	let %A, a
+
+;u16 = u8 + u8
+rule add %A:byte2,%B:byte,%C:byte = instr
+	lda %B
+	clc
+	adc %C
+	sta %A$0
+	lda 0
+	rol a			
+	sta %A$1	
+	
+;s16 = s8 + s8
+rule add %A:int,%B:sbyte,%C:sbyte = instr
+	let x, 0
+	let a, %B
+	clc
+	adc %C
+	ifeq _no_overflow, v, 0			;if there was overfow, switch the negative bit
+	ifeq _negative, n, 0
+	ifeq _positive, n, 1		
+	label _no_overflow
+	ifeq _positive, n, 0	
+	label _negative
+	dex	
+	label _positive
+	let %A$0,a
+	let %A$1,x	
+
+;u16 += 1
+;s16 +=1
+rule add %A:byte2,%A,1 = instr
+  inc %A$0
+  ifeq _lab1, Z, 0
+  inc %A$1
+  label _lab1
+
+;u16 += arr(u8)
+rule add %A:card,%A:card,%B:byte1arr(%D:byte-const %E) = instr
+	ldx %D
+	lda %A$0
+	clc
+	adc %B$(x-%E)
+	sta %A$0
+	bcc _lab1
+	inc %A$1
+	label _lab1
+	
+;u16 += u8
+rule add %A:card,%A:card,%B:byte = instr
+	let a, %A$0
+	clc
+	adc %B
+	let %A$0,a
+	ifeq _skip1,c,0
+	inc %A$1
+	label _skip1
+
+;u16 = u16 + u8
+;s16 = s16 + u8
+rule add %A:byte2,%B:byte2,%C:byte = instr
+	let a, %B$0
+	clc
+	adc %C
+	let %A$0,a
+	let a, %B$1
+	adc 0
+	let %A$1, a
+
+rule add %A:card, %B:byte, const %C:card = instr
+	let a, %B
+	lo %Z, %C           ; %Z is macro local variable
+	clc
+	adc %Z
+	let %A$0, a
+	let a, 0
+	hi %Z, %C           ; %Z is macro local variable
+	adc %Z
+	let %A$1, a
+
+rule add %A:card, %B:card, const %C:card = instr
+	let a, %B$0
+	lo %Z, %C           ; %Z is macro local variable
+	clc
+	adc %Z
+	let %A$0, a
+	let a, %B$1
+	hi %Z, %C           ; %Z is macro local variable
+	adc %Z
+	let %A$1, a
+
+;u16 = u16 + u16
+rule add %A:card, %B:card, %C:card = instr
+	let a, %B$0
+	clc
+	adc %C$0
+	let %A$0, a
+	let a, %B$1
+	adc %C$1
+	let %A$1, a
+
+;s16 = s16 + s8
+;s16 = u16 + s8
+;u16 = u16 + s8
+rule add %R:byte2, %A:byte2, %B:sbyte = instr
+	let x, 0
+	let a, %B
+	ifeq positive, n, 0
+	dex
+	label positive
+	clc
+	adc %A$0
+	let %R$0, a
+	let a, x
+	adc %A$1
+	let %R$1, a
+
+;Signed addition
+rule add %A:int, %B:int, %C:int = instr
+	let a, %B$0
+	clc
+	adc %C$0
+	let %A$0, a
+	let a, %B$1
+	adc %C$1
+	let %A$1, a
+
+;TODO: Remove
+rule add %A:int, %B:int, const %C:int = instr
+	let a, %B$0
+	lo %Z, %C           ; %Z is macro local variable
+	clc
+	adc %Z
+	let %A$0, a
+	let a, %B$1
+	hi %Z, %C           ; %Z is macro local variable
+	adc %Z
+	let %A$1, a
+
+;3-byte Increment
+rule add %A:long,%A,1 = instr
+  inc %A$0
+  ifeq _lab2, z, 0
+  inc %A$1
+  ifeq _lab2, z, 0
+  inc %A$2
+  label _lab2  
+
+;*********** Sub
+
+rule sub %A:byte1arr(%B), %A(%B), 1 = instr
+	sub %A$%B, %A$%B, 1
+
+rule sub %A:byte1, %B:byte1, 1 = instr
+	let a, %B
+	let %A, a
+	sub %A, %A, 1
+
+rule sub %A:byte1, %B:byte1, %C:byte1 = instr
+  let a,%B
+  sec
+  sbc %C
+  let %A,a
+	
+;s24 = s16 - s16
+
+rule %A:s24 = %B:s16 - %C:s16 = instr
+	lda %B$0
+	sec
+	sbc %C$0
+	sta %A$0
+	lda %B$1
+	sbc %C$1
+	sta %A$1
+	lda %B$2
+	sbc %C$2
+	sta %A$2
+
+rule sub %A:int, %B:byte, %C:byte = instr
+	sec
+	lda %B
+	sbc %C
+	sta %A$0
+	lda 0
+	sbc 0
+	sta %A$1
+	
+rule sub %A:card, %B:card, const %C:card = instr
+	let a, %B$0
+	lo %Z, %C           ; %Z is macro local variable
+	sec
+	sbc %Z
+	let %A$0, a
+	let a, %B$1
+	hi %Z, %C           ; %Z is macro local variable
+	sbc %Z
+	let %A$1, a
+
+rule sub %A:card, const %B:card, %C:card = instr
+	lo a, %B
+	sec
+	sbc %C$0
+	let %A$0, a
+	hi a, %B
+	sbc %C$1
+	let %A$1, a
+
+rule sub %A:card, %B:card, %C:card = instr
+	let a, %B$0
+	sec
+	sbc %C$0
+	let %A$0, a
+	let a, %B$1
+	sbc %C$1
+	let %A$1, a
+	
+
+;*********** Multiplication
+
+; helper in multiplying by 3; leaves result in a
+rule mula %A:byte, 2    = instr
+	let a, %A			; lda %B
+	asl a   ; asl
+
+rule mula %A:byte, 3    = instr
+	let a, %A			; lda %B
+	asl a   ; asl
+	clc
+	adc %A
+
+rule mula %A:byte, 5    = instr
+	let a, %A			; lda %B
+	asl a   ; asl
+	asl a   ; asl
+	clc
+	adc %A
+
+rule mul %A:byte, %A:byte, 3	= instr
+	mula %A, 3
+	let %A, a
+
+rule mul %A:byte, %B:byte, 0    = instr
+	let a, 0			; lda %B
+	let %A, a      ; sta %A
+
+rule mul %A:byte, %B:byte, 1    = instr
+	let a, %B			; lda %B
+	let %A, a      ; sta %A
+
+rule mul %A:byte, %B:byte, 2    = instr
+	let a, %B			; lda %B
+	asl a   ; asl
+	let %A, a      ; sta %A
+
+rule mul %A:byte, %B:byte, 3    = instr
+	mula %B, 3
+	let %A, a      ; sta %A
+
+rule mul %A:byte, %B:byte, 4    = instr
+	let a, %B			; lda %B
+	asl a   ; asl
+	asl a   ; asl
+	let %A, a      ; sta %A
+
+rule mul %A:byte, %B:byte, 5    = instr
+	mula %B, 5
+	let %A, a      ; sta %A
+
+rule mul %A:byte, %B:byte, 6    = instr
+	mula %B, 3
+	asl a
+	let %A, a      ; sta %A
+
+rule mul %A:byte, %B:byte, 8    = instr
+	let a, %B			; lda %B
+	asl a   ; asl
+	asl a   ; asl
+	asl a   ; asl
+	let %A, a      ; sta %A
+
+rule mul %A:byte, %B:byte, 10    = instr
+	mula %B, 5
+	asl a
+	let %A, a      ; sta %A
+
+rule mul %A:byte, %B:byte, 12    = instr
+	mula %B, 3
+	asl a
+	asl a
+	let %A, a      ; sta %A
+
+rule mul %A:byte, %B:byte, 16    = instr
+	let a, %B			; lda %B
+	asl a   ; asl
+	asl a   ; asl
+	asl a   ; asl
+	asl a   ; asl
+	let %A, a      ; sta %A
+
+rule mul %A:byte, %B:byte, 20    = instr
+	mula %B, 5
+	asl a
+	asl a
+	let %A, a      ; sta %A
+
+rule mul %A:byte, %B:byte, 24    = instr
+	mula %B, 3
+	asl a
+	asl a
+	asl a
+	let %A, a      ; sta %A
+
+rule mul %A:byte, %B:byte, 32    = instr
+	let a, %B			; lda %B
+	asl a   ; asl
+	asl a   ; asl
+	asl a   ; asl
+	asl a   ; asl
+	asl a   ; asl
+	let %A, a      ; sta %A
+
+rule mul %A:byte, %B:byte, 40    = instr
+	mula %B, 5
+	asl a
+	asl a
+	asl a
+	let %A, a      ; sta %A
+
+rule mul %A:byte, %B:byte, 48    = instr
+	mula %B, 3
+	asl a
+	asl a
+	asl a
+	asl a
+	let %A, a      ; sta %A
+
+rule mul %A:byte, %B:byte, 64    = instr
+	let a, %B			; lda %B
+	asl a   ; asl
+	asl a   ; asl
+	asl a   ; asl
+	asl a   ; asl
+	asl a   ; asl
+	asl a   ; asl
+	let %A, a      ; sta %A
+
+rule mul %A:byte, %B:byte, 80    = instr
+	mula %B, 5
+	asl a
+	asl a
+	asl a
+	asl a
+	let %A, a      ; sta %A
+
+rule mul %A:byte, %B:byte, 96    = instr
+	mula %B, 3
+	asl a
+	asl a
+	asl a
+	asl a
+	asl a
+	let %A, a      ; sta %A
+
+rule mul %A:byte, %B:byte, 128    = instr
+	let a, %B			; lda %B
+	lsr a
+	let a, 0
+	ror a
+	let %A, a      ; sta %A
+
+rule mul %A:byte, %B:byte, 160    = instr
+	mula %B, 5
+	asl a
+	asl a
+	asl a
+	asl a
+	asl a
+	let %A, a      ; sta %A
+
+rule mul %A:byte, %B:byte, 192    = instr
+	mula %B, 3
+	asl a
+	asl a
+	asl a
+	asl a
+	asl a
+	asl a
+	let %A, a      ; sta %A
+
+;rule mul %A:card, %B:byte, 0    = instr
+;	let a, 0	; lda #0
+;	let %A$0, a   ; sta %A
+;	let %A$1, a   ; sta %A+1
+
+rule mul %A:card, %B:byte, 1    = instr
+	let a, %B			; lda %B
+	let %A$0, a   ; sta %A
+	let a, 0	; lda #0
+	let %A$1, a   ; sta %A+1
+
+rule mul %A:card, %B:byte, 2    = instr
+	lda %B
+	asl
+	sta %A$0
+	lda 0
+	rol			
+	sta %A$1
+
+; if no "=instr" segfaults
+rule mula16 %A:card, %B:byte, 2	= instr
+	let a, %B
+	asl a
+	let %A$0, a
+	let a, 0
+	rol a
+
+;rule mula16 %B:card, %A:card, 2	= instr
+;	let a, %A$0
+;	asl a
+;	let _TEMPW1$0, a
+;	let a, %A$1
+;	rol a
+
+rule mula16 %A:card, %B:byte, 4	= instr
+	mula16 %A, %B, 2
+	mul %A$0, %A$0, 2
+	rol a
+
+rule mula16 %A:card, %B:byte,  8	= instr
+	mula16 %A, %B, 4
+	mul %A$0, %A$0, 2
+	rol a
+
+rule mula16 %A:card, %B:byte,  16	= instr
+	mula16 %A, %B,8
+	mul %A$0, %A$0, 2
+	rol a
+
+rule mula16 %A:card, %B:byte,  32	= instr
+	mula16 %A, %B, 16
+	mul %A$0, %A$0, 2
+	rol a
+
+rule mula16 %A:card, %B:byte,  64	= instr
+	mula16 %A, %B, 32
+	mul %A$0, %A$0, 2
+	rol a
+
+rule mula16 %A:card, %B:byte,  128	= instr
+	mula16 %A, %B, 64
+	mul %A$0, %A$0, 2
+	rol a
+
+rule mul %A:card, %B:byte, 4    = instr
+	mula16 %A, %B, 4
+	let %A$1, a
+
+rule mul %A:card, %B:byte, 8    = instr
+	mula16 %A, %B, 8
+	let %A$1, a
+
+rule mul %A:card,%B:byte, 16    = instr
+	mula16 %A, %B, 16
+	let %A$1, a
+
+rule mul %A:card,%B:byte, 32    = instr
+	let a, %B
+	lsr a
+	let %A$1, a
+	let a, 0
+	ror a
+	div %A$1, %A$1, 2
+	ror a
+	div %A$1, %A$1, 2
+	ror a
+	let %A$0, a
+
+rule mul %A:card,%B:byte, 64    = instr
+	let a, %B
+	lsr a
+	let %A$1, a
+	let a, 0
+	ror a
+	div %A$1, %A$1, 2
+	ror a
+	let %A$0, a
+
+; more efficient would be from the other side
+rule mul %A:card,%B:byte, 128    = instr
+	let a, %B
+	lsr a
+	let %A$1, a
+	let a, 0
+	ror a
+	let %A$0, a
+
+rule mul %A:card,%B:byte, 256    = instr
+	let a, %B
+	let %A$1, a
+	let a, 0
+	let %A$0, a
+
+rule mul %A:card,%B:byte, 512    = instr
+	mula %B, 2
+	let %A$1, a
+	let a, 0
+	let %A$0, a
+
+rule mul %A:card,%B:byte, 1024    = instr
+	mula %B, 2
+	asl a
+	let %A$1, a
+	let a, 0
+	let %A$0, a
+
+rule mul %A:card,%B:byte, 2048    = instr
+	mula %B, 2
+	asl a
+	asl a
+	let %A$1, a
+	let a, 0
+	let %A$0, a
+
+
+rule mul %A:card,%B:byte, 4096    = instr
+	mula %B, 2
+	asl a
+	asl a
+	asl a
+	let %A$1, a
+	let a, 0
+	let %A$0, a
+
+
+
+rule mul %A:card,%B:byte, 8192    = instr
+	mula %B, 2
+	asl a
+	asl a
+	asl a
+	asl a
+	let %A$1, a
+	let a, 0
+	let %A$0, a
+
+
+rule mul %A:card,%B:byte, 16384    = instr
+	mula %B, 2
+	asl a
+	asl a
+	asl a
+	asl a
+	asl a
+	let %A$1, a
+	let a, 0
+	let %A$0, a
+
+; This optimizes wrong way
+;rule mul %A:card,%B:byte, 32768    = instr
+;	let a, %B			; lda %B
+;	lsr a
+;	let a, 0
+;	ror a
+;	let %A$1, a      ; sta %A
+;	let a, 0
+;	let %A$0, a
+
+rule mul %A:card,%B:byte, 32768    = instr
+	lda %B
+	lsr a				   
+	ror a
+	and a, a, 128
+	let %A$1, a      ; sta %A
+	let a, 0
+	let %A$0, a
+
+_sys_mul8:proc m1@cpu.a m2@cpu.x >r@_TEMPW2
+_sys_mulsu8:proc m1@cpu.a m2@cpu.x @cpu.x @cpu.a >r@_TEMPW2
+_sys_mulss8:proc m1@cpu.a m2@cpu.x @cpu.x @cpu.a >r@_TEMPW2
+
+;System routine for multiplication.
+
+rule mul %A:card, %B:byte, %C:byte = instr
+	lda %B			;TODO: let _sys_mul8.m1, %B
+	ldx %C
+	call _sys_mul8
+	let %A, _TEMPW2
+
+rule mul %A:int, %B:sbyte, %C:byte = instr
+	let a, %B
+	let x, %C
+	call _sys_mulsu8
+	let %A, _TEMPW2
+
+rule mul %A:int, %B:sbyte, %C:sbyte = instr
+	let a, %B
+	let x, %C
+	call _sys_mulss8
+	let %A, _TEMPW2
+
+rule mul %A:int, %B:byte, %C:sbyte = instr
+	let a, %C
+	let x, %B
+	call _sys_mulsu8
+	let %A, _TEMPW2
+	
+rule mul %A:card, %B:card, 2    = instr
+	let a, %B$0		; lda %B
+	asl a   ; asl
+	let %A$0, a   ; sta %A
+	let a, 0		; lda #0
+	let a, %B$1		; lda %B+1
+	rol a		
+	let %A$1, a   ; sta %A+1
+
+_sys_mul16:proc a@_TEMPW1 b@_TEMPW2 ->r@_TEMPL1
+
+rule mul %A:card, %B:card, %C:card = instr
+	let _TEMPW1, %B
+	let _TEMPW2, %C
+	call _sys_mul16
+	let %A, _TEMPL1
+
+;*********** Square root
+
+_sys_sqrt16:proc a@_TEMPW1 ->r@cpu.a @cpu.x 
+
+rule sqrt %A:card, %B:card = instr
+	let _TEMPW1, %B
+	call _sys_sqrt16
+	let %A, a
+	
+;*********** Division
+
+_sys_div8:proc a@_TEMPW1:card, b@cpu.a:byte -> res@cpu.a:byte, remainder@cpu.x:byte
+
+rule div %A:byte, %B:byte, 2       = instr
+	let a, %B
+	lsr a
+	let %A, a  
+
+rule div %A:byte, %B:byte, 4       = instr
+	let a, %B
+	lsr a
+	lsr a
+	let %A, a  
+
+rule div %A:byte, %B:byte, 8       = instr
+	let a, %B
+	lsr a
+	lsr a
+	lsr a
+	let %A, a  
+	
+rule div %A:card, %A:card, 2       = instr
+	lsr %A$1
+	ror %A$0
+
+rule div %A:card, %A:card, 4       = instr
+	div %A, %A, 2
+	div %A, %A, 2
+	
+rule div %A:card, %A:card, 8       = instr
+	div %A, %A, 4
+	div %A, %A, 2
+
+rule div %A:card, %B:card, 8       = instr
+	lda %B$0
+	sta %A$0
+	lda %B$1
+	lsr a
+	ror %A$0
+	lsr a
+	ror %A$0
+	lsr a
+	ror %A$0
+	sta %A$1
+	
+rule div %A:byte, %B:card, %C:byte = instr
+	let _TEMPW1, %B			;divident
+	let a, %C          ;divisor
+	call _sys_div8
+	let %A, a
+
+rule div %A:byte1arr(%B:card), %C:card, %D:byte = instr
+	let _TEMPW1, %C			;divident
+	let a, %D          ;divisor
+	call _sys_div8
+	let %A(%B), a
+
+;*********** Modulo
+
+rule mod %A, %B:byte, 2 = instr
+	let a, %B
+	and a, a, 1
+	let %A, a
+
+rule mod %A, %B:byte, 4 = instr
+	let a, %B
+	and a, a, 3
+	let %A, a
+
+rule mod %A, %B:byte, 8 = instr
+	let a, %B
+	and a, a, 7
+	let %A, a
+
+rule mod %A, %B:byte, 16 = instr
+	let a, %B
+	and a, a, 15
+	let %A, a
+
+rule mod %A, %B:byte, 32 = instr
+	let a, %B
+	and a, a, 31
+	let %A, a
+
+rule mod %A, %B:byte, 64 = instr
+	let a, %B
+	and a, a, 63
+	let %A, a
+
+rule mod %A, %B:byte, 128 = instr
+	let a, %B
+	and a, a, 127
+	let %A, a
+
+rule mod %A:byte, %B:card, 8 = instr
+	let a, %B$0
+	and a, a, 7
+	let %A, a
+
+;16-bit
+rule mod %A:, %B:card, 8 = instr
+	let a, %B$0
+	and a, a, 7
+	let %A, a
+		
+rule mod %A:byte, %B:card, %C:byte = instr
+	let _TEMPW1, %B			;divident
+	let a, %C          ;divisor
+	call _sys_div8
+	let %A, x
+
+
+;*********** And
+
+rule and %A:byte,%B:byte,%C:byte = instr
+	let a,%B
+	and a,a,%C
+	let %A,a
+
+rule and %A:byte,%B:card,%C:byte = instr
+	let a,%B$0
+	and a,a,%C
+	let %A,a
+
+rule and %A:byte1arr(%B:byte - const %E),%C:byte,%D:byte = instr
+	let a,%C
+	and a, a, %D
+	let x,%B
+	let %A$(x-%E),a
+
+rule and %A:byte,%B:byte1arr(%C:byte-const %E),%D:byte = instr
+	let x,%C
+	let a,%B$(x-%E)
+	and a, a, %D
+	let %A, a
+
+rule and %A:card, %B:card, const %C = instr
+	let a, %B$0
+	lo   %Z, %C
+	and  a, a, %Z 
+ 	let %A$0, a
+ 	
+	let a, %B$1
+	hi   %Z, %C
+	and  a, a, %Z 
+ 	let %A$1, a
+ 	
+rule and %A:card, %B:card, %C:byte = instr
+	let a, %B$0
+	and  a, a, %C
+	let %A$0, a 
+	let a, 0
+	let %A$1, a
+	
+rule and %A:card, %B:byte, %C:card = instr and %A, %C, %B
+
+rule and %A:card, %B:card, %C:card = instr
+	let a, %B$0
+	and   a, a, %C$0
+	let %A$0, a
+	 
+	let a, %B$1
+	and   a, a, %C$1
+	let %A$1, a
+
+	
+;*********** Or
+
+rule or  %A:byte,%B:byte,%C:byte = instr
+  let a,%B
+  or a,a,%C
+  let %A,a
+
+rule or %A:byte1arr(%B:byte-const %E),%C:byte,%D:byte = instr
+	let a,%C
+	or a, a, %D
+	let x,%B
+	let %A$(x-%E),a
+
+rule or %A:byte,%B:byte1arr(%C:byte-const %E),%D:byte = instr
+	let x,%C
+	let a,%B$(x-%E)
+	or a, a, %D
+	let %A, a
+
+rule or %A:card, %B:card, const %C = instr
+	let a, %B$0
+	lo   %Z, %C
+	or  a, a, %Z 
+ 	let %A$0, a
+ 	
+	let a, %B$1
+	hi   %Z, %C
+	or  a, a, %Z 
+ 	let %A$1, a
+ 	
+rule or %A:card, %B:card, %C:byte = instr
+	let a, %B$0
+	or  a, a, %C
+	let %A$0, a 
+	let a, %B$1
+	let %A$1, a
+	
+rule or %A:card, %B:byte, %C:card = instr or %A, %C, %B
+
+rule or %A:card, %B:card, %C:card = instr
+	let a, %B$0
+	or   a, a, %C$0
+	let %A$0, a
+	 
+	let a, %B$1
+	or   a, a, %C$1
+	let %A$1, a
+
+	
+;*********** Xor
+
+rule xor  %A:byte,%B:byte,%C:byte = instr
+	let a,%B
+	xor a,a,%C
+	let %A,a
+
+rule xor %A:byte1arr(%B:byte-const %E),%C:byte,%D:byte = instr
+	let a,%C
+	xor a, a, %D
+	let x,%B
+	let %A$(x-%E),a
+
+rule xor %A:byte,%B:byte1arr(%C:byte-const %E),%D:byte = instr
+	let x,%C
+	let a,%B$(x-%E)
+	xor a, a, %D
+	let %A, a
+
+rule xor %A:card, %B:card, const %C = instr
+	let a, %B$0
+	lo   %Z, %C
+	xor  a, a, %Z 
+ 	let %A$0, a
+ 	
+	let a, %B$1
+	hi   %Z, %C
+	xor  a, a, %Z 
+ 	let %A$1, a
+ 	
+rule xor %A:card, %B:card, %C:byte = instr
+	let a, %B$0
+	xor  a, a, %C
+	let %A$0, a 
+	let a, %B$1
+	let %A$1, a
+	
+rule xor %A:card, %B:byte, %C:card = instr xor %A, %C, %B
+
+rule xor %A:card, %B:card, %C:card = instr
+	let a, %B$0
+	xor a, a, %C$0
+	let %A$0, a
+	 
+	let a, %B$1
+	xor a, a, %C$1
+	let %A$1, a
+;*********** Not
+
+rule not a,a  = "   eor #$FF"
+
+rule not %A:byte, %B:byte = instr
+	let a, %B
+	not a,a
+	let %A, a	
+	
+;************ Conditional jumps
+
+rule ifoverflow %A = "   jcs %A"
+rule ifnoverflow %A = "   jcc %A"
+
+;Short versions of conditions comparing to specific values.
+;There comparisons are using Z and N flags. 
+
+;if u8,s8 = 0
+rule ifeq %L,%B:byte1,0 = instr
+   lda %B
+   beq %L
+
+;if u8,s8 <> 0
+rule ifne %L,%B:byte1,0 = instr
+   lda %B
+   bne %L
+
+;if u8 <= 127
+rule ifle %L,%B:byte,127 = instr
+   lda %B
+   bpl %L
+
+;if u8 < 128
+rule iflt %L,%B:byte,128 = instr
+   lda %B
+   bpl %L
+
+;if u8 <= 127
+rule ifge %L,%B:byte,128 = instr
+   lda %B
+   bmi %L
+
+;if u8 >= 128
+rule ifge %L,%B:byte,128 = instr
+   lda %B
+   bmi %L
+
+;if u8 > 127
+rule ifgt %L,%B:byte,127 = instr
+   lda %B
+   bmi %L
+
+;if u8 == u8
+rule ifeq %L,%B:byte,%C:byte   = instr
+  let a, %B          ; lda %A
+  sub cznv, a, %C    ; cmp %C
+  ifeq %L, z, 1      ; jeq %A
+
+;if s8 == s8
+rule ifeq %L,%B:sbyte,%C:sbyte   = instr
+  let a, %B          ; lda %A
+  sub cznv, a, %C    ; cmp %C
+  ifeq %L, z, 1      ; jeq %A
+
+;if s8 = u8
+rule ifeq %L,%B:sbyte,%C:byte   = instr
+  let a, %B
+  ifeq _loc, n, 1
+	sub cznv, a, %C
+  ifeq %L, z, 1 	 
+  label _loc
+  
+;if u8 = s8
+rule ifeq %L,%B:byte,%C:sbyte   = instr
+  let a, %C
+  ifeq _loc, n, 1
+	sub cznv, a, %B
+  ifeq %L, z, 1 	 
+  label _loc
+
+;shortcut for A register
+rule ifne %A,a,%C:byte1   = instr
+  sub cznv, a, %C   ; cmp %C
+  ifne %A, z, 1      ; jne %A
+
+;if u8 <> u8
+rule ifne %L,%A:byte,%B:byte   = instr
+  let a, %A          ; lda %L
+  sub cznv, a, %B   ; cmp %B
+  ifne %L, z, 1      ; jne %L
+
+;if s8 <> s8
+rule ifne %L,%A:sbyte,%B:sbyte   = instr
+  let a, %A          ; lda %L
+  sub cznv, a, %B   ; cmp %B
+  ifne %L, z, 1      ; jne %L
+
+;if s8 <> u8
+rule ifne %L,%A:sbyte,%B:byte   = instr
+  let a, %A
+  ifeq %L, n, 1
+	sub cznv, a, %B
+  ifne %L, z, 1 	 
+  
+;if u8 <> s8
+rule ifne %L,%A:byte,%B:sbyte   = instr
+  let a, %B
+  ifeq %L, n, 1
+	sub cznv, a, %A
+  ifne %L, z, 1
+
+;u8 <= u8
+rule ifle %L,%A:byte,%B:byte   = instr
+  let a, %B          ; lda %A
+  sub cznv, a, %A   ; cmp %B
+  ifeq %L, c, 1      ; jeq %L
+
+;u8 <= s8
+rule ifle %L,%A:byte,%B:sbyte   = instr
+  let a, %B          ; lda %A
+  ifeq higher, n, 1  ; bmi higher
+  sub cznv, a, %A   ; cmp %B
+  ifeq %L, c, 1      ; jeq %L
+  label higher
+
+;s8 <= s8  -- note the switched order of operands
+rule ifle %L,%A:sbyte,%B:sbyte   = instr
+  let a, %B          ; lda %A
+	sec           ; clc
+  sbc %A    ; sub %B
+  ifeq ok, v, 0			; bvc ok
+  xor a, a, 255
+  label ok
+  ifeq %L, n, 0      ; bpl %L
+
+;u8 >= u8
+rule ifge %L,%A:byte,%B:byte   = instr
+  let a, %A          ; lda %A
+  sub cznv, a, %B   ; cmp %B
+  ifeq %L, c, 1      ; jcc %L
+
+;s8 >= u8
+rule ifge %L,%A:sbyte,%B:byte   = instr
+  let a, %A          ; lda %A
+  ifeq lower, n, 1		; bmi lower
+  sub cznv, a, %B   ; cmp %B
+  ifeq %L, c, 1      ; jcc %L
+  label lower
+
+;u8 >= s8
+rule ifge %L,%A:byte,%B:sbyte   = instr
+  let a, %A          ; lda %A
+  ifeq %L, n, 1		  ; bmi lower (positive value >=128)
+  sub cznv, a, %B   ; cmp %B
+  ifeq %L, c, 1      ; jcc %L
+  
+;s8 >= s8
+rule ifge %L,%A:sbyte,%B:sbyte   = instr
+  let a, %A          ; lda %A
+	sec           ; clc
+  sbc %B    ; sub %B
+  ifeq ok, v, 0			; bvc ok
+  xor a, a, 255
+  label ok
+  ifeq %L, n, 0      ; bpl %L
+
+;if u8 < u8
+rule iflt %L,%A:byte,%B:byte   = instr
+  let a, %A          ; lda %A
+  sub cznv, a, %B   ; cmp %B
+  ifeq %L, c, 0      ; jcs %L
+
+;if s8 < s8
+rule iflt %L,%A:sbyte,%B:sbyte   = instr
+  let a, %A          ; lda %A
+	sec           ; clc
+  sbc %B    ; sub %B
+  ifeq ok, v, 0			; bvc ok
+  xor a, a, 255
+  label ok
+  ifeq %L, n, 1      ; bmi %L
+
+;if u8 < s8
+rule iflt %L,%A:byte,%B:sbyte   = instr
+  let a, %A          ; lda %A
+  ifeq higher, n, 1   ; bmi higher
+  sub cznv, a, %B   ; cmp %B
+  ifeq %L, c, 0      ; jcs %L
+  label higher
+  
+;if s8 < u8
+rule iflt %L,%A:sbyte,%B:byte   = instr
+  let a, %A          ; lda %A
+  ifeq %L, n, 1      ; bmi %L
+  sub cznv, a, %B   ; cmp %B
+  ifeq %L, c, 0      ; jcs %L
+
+;if u8 > s8  -- note the switched order of operands
+rule ifgt %L,%A:byte,%B:sbyte   = instr
+  let a, %B          ; lda %A
+  ifeq %L, n, 1
+  sub cznv, a, %A   ; cmp %B
+  ifeq %L, c, 0      ; jcs %L
+
+;if s8 > u8  -- note the switched order of operands
+rule ifgt %L,%A:sbyte,%B:byte   = instr
+  let a, %B          ; lda %A
+  ifeq %L, n, 1			; unsigned >= 128 
+  sub cznv, a, %A   ; cmp %B
+  ifeq %L, c, 0      ; jcs %L
+  
+;if u8 > u8  -- note the switched order of operands
+rule ifgt %L,%A:byte,%B:byte   = instr
+  let a, %B          ; lda %A
+  sub cznv, a, %A   ; cmp %B
+  ifeq %L, c, 0      ; jcs %L
+
+;if s8 > s8  -- note the switched order of operands
+rule ifgt %L,%A:sbyte,%B:sbyte   = instr
+  let a, %B          ; lda %A
+	sec           ; clc
+  sbc %A    ; sub %B
+  ifeq ok, v, 0			; bvc ok
+  xor a, a, 255
+  label ok
+  ifeq %L, n, 1      ; bmi %L
+
+;16-bit comparisons
+
+;Matching comparisons must be first, as otherwise for constants or variables
+;in smaller range, compiler may select more complicated version.
+;For example ifeq lab, a:0..10000, b:0..10000 fits signed/unsigned rule, but
+;that is more complicated. 
+
+;if u16 = u16 
+rule ifeq %L,%B:card,%C:card  = instr
+	ifne _loc, %B$0, %C$0
+	ifeq %L, %B$1, %C$1	
+	label _loc
+
+;if s16 = s16
+rule ifeq %L,%B:int,%C:int  = instr
+	ifne _loc, %B$0, %C$0
+	ifeq %L, %B$1, %C$1	
+	label _loc
+
+;if s16 = u16
+rule ifeq %L,%B:int,%C:card  = instr
+	let a, %B$1
+	ifeq diff, n, 1
+	sub cznv, a, %C$1
+	ifeq diff, z, 0
+	let a, %B$0
+	sub cznv, a, %C$0	 
+	ifeq %L, z, 1	
+	label diff	
+
+;if u16 = s16
+rule ifeq %L,%B:card,%C:int  = instr
+	let a, %C$1
+	ifeq diff, n, 1
+	sub cznv, a, %B$1
+	ifeq diff, z, 0
+	let a, %C$0
+	sub cznv, a, %B$0	 
+	ifeq %L, z, 1	
+	label diff	
+
+;if u16 <> u16
+rule ifne %L,%B:card, %C:card = instr
+  lda %B$0
+  cmp %C$0
+  bne %L
+  lda %B$1
+  cmp %C$1
+  bne %L
+
+;if s16 <> s16
+rule ifne %L,%B:int, %C:int = instr
+  lda %B$0
+  cmp %C$0
+  bne %L
+  lda %B$1
+  cmp %C$1
+  bne %L
+
+;if s16 <> u16
+rule ifne %L,%B:int, %C:card = instr
+  let a, %B$1
+  ifeq %L, n, 1
+  sub cznv, a, %C$1
+  ifne %L, z, 1
+  let a, %B$0
+  sub cznv, a, %C$0
+  ifne %L, z, 1
+
+;if u16 <> s16
+rule ifne %L,%B:card, %C:int = instr
+  ifne %L, %C, %B
+
+;if u16 < u16
+rule iflt %L,%B:card, %C:card   = instr
+  let a, %B$1          ; lda %B
+  sub cznv, a, %C$1    ; cmp %C
+  ifeq %L, c, 0				 ; bcc %L
+  ifeq lab, z, 0       ; bne lab 
+  let a, %B$0          ; lda %B+1
+  sub cznv, a, %C$0    ; cmp %C+1
+  ifeq %L, c, 0        ; jcs %A
+  label lab
+
+;This is support rule for signed 2-byte comparison.
+rule sub n, %B:int, %C:int = instr
+	let a, %B$0
+	sub cznv, a, %C$0
+	let a, %B$1
+	sbc %C$1
+	ifeq lab, v, 0
+	xor a, a, 255
+	label lab
+ 
+;if s16 < s16
+rule iflt %L,%B:int, %C:int   = instr
+	sub n, %B, %C
+	ifeq %L, n, 1
+
+;if s16 < u16
+rule iflt %L,%B:int, %C:card   = instr
+  let a, %B$1          ; lda %B
+  ifeq %L, n, 1				 ; bmi %A  -- integer is negative = is smaller
+  sub cznv, a, %C$1    ; cmp %C
+  ifeq %L, c, 0				 ; bcc %L
+  ifeq lab, z, 0       ; bne lab 
+  let a, %B$0          ; lda %B+1
+  sub cznv, a, %C$0    ; cmp %C+1
+  ifeq %L, c, 0        ; jcs %A
+  label lab
+
+;if u16 > u16
+rule ifgt %L,%B:card,%C:card  = instr
+  let a, %B$1         ; lda %B
+  sub cznv, a, %C$1   ; cmp %C
+  ifeq _lab1, z, 1    ; beq _lab1
+  ifeq %L, c, 1       ; bcs %A
+  label _lab1
+  let a, %B$0         ; lda %B+1
+  sub cznv, a, %C$0   ; cmp %C+1
+  ifeq _lab2, z, 1    ; beq _lab2
+  ifeq %L, c, 1       ; jcs %A
+  label _lab2
+
+;if s16 > s16
+rule ifgt %L,%B:int, %C:int   = instr
+	sub n, %B, %C
+	ifeq %L, n, 0
+
+;if s16 > u16
+rule ifgt %L,%B:int, %C:card  = instr
+  let a, %B$1         ; lda %B
+  ifeq _lab2, n, 1		; bmi _lab2 -- %B is negative and thus lower
+  sub cznv, a, %C$1   ; cmp %C
+  ifeq _lab1, z, 1    ; beq _lab1
+  ifeq %L, c, 1       ; bcs %A
+  label _lab1
+  let a, %B$0         ; lda %B+1
+  sub cznv, a, %C$0   ; cmp %C+1
+  ifeq _lab2, z, 1    ; beq _lab2
+  ifeq %L, c, 1       ; jcs %A
+  label _lab2
+
+;if u16 <= u16
+rule ifle %L,%B:card, %C:card   = instr
+	lda %B$0
+	cmp %C$0
+	lda %B$1
+	sbc %C$1
+	beq %L
+	bcc %L
+
+;rule ifle %L,%B:card, %C:card   = instr
+;  let a, %B$1          ; lda %B+1
+;  sub cznv, a, %C$1    ; cmp %C+1
+;  ifeq %L, c, 0        ; bcc %L		-- higher byte is lower => %B < %C
+;  bne  _lab2 
+;  let a, %B$0          ; lda %B+0 -- higher byte is smaller or equal
+;  sub cznv, a, %C$0    ; cmp %C+0  
+;  ifeq %L, c, 0        ; jcs %A   -- lower byte is lower or equal
+;  ifeq %L, z, 1
+;  label _lab2
+  
+;if s16 <= s16
+rule ifle %L,%B:int, %C:int   = instr
+	ifgt %L, %C, %B
+
+;if s16 <= u16
+rule ifle %L,%B:int, %C:card   = instr
+  let a, %B$1          ; lda %B+1
+  ifeq %L, n, 1
+  sub cznv, a, %C$1    ; cmp %C+1
+  ifeq %L, c, 0        ; bcc %L		-- higher byte is lower => %B < %C 
+  let a, %B$0          ; lda %B+0 -- higher byte is smaller or equal
+  sub cznv, a, %C$0    ; cmp %C+0  
+  ifeq %L, c, 0        ; jcs %A   -- lower byte is lower or equal
+  ifeq %L, z, 1
+
+;if u16 >= u16
+rule ifge %L,%B:card, %C:card   = instr
+  let a, %B$1          ; lda %B
+  sub cznv, a, %C$1    ; cmp %C
+  ifeq lab, c, 0				 ; bcc %L
+  ifeq %L, z, 0       ; bne lab 
+  let a, %B$0          ; lda %B+1
+  sub cznv, a, %C$0    ; cmp %C+1
+  ifeq %L, c, 1        ; jcs %A
+  label lab
+
+;if s16 >= s16
+rule ifge %L,%B:int, %C:int   = instr
+	iflt %L, %C, %B
+
+;if s16 >= u16
+rule ifge %L,%B:int, %C:card   = instr
+  let a, %B$1         ; lda %B
+  ifeq lab, n, 1			; bmi lab  -- integer is negative = is not greater or equal
+  sub cznv, a, %C$1   ; cmp %C
+  ifeq lab, c, 0			; bcc %L
+  ifeq %L, z, 0       ; bne lab 
+  let a, %B$0         ; lda %B+1
+  sub cznv, a, %C$0   ; cmp %C+1
+  ifeq %L, c, 1       ; jcs %A
+  label lab
+
+
+;==============================	
+;Rules emmiting compiled output
+;==============================
+;
+;These rules are used in last step of compilation to transform compiler
+;instructions to CPU specific instructions.
+;Some rule must match every compiler instruction possible in this stage.
+;(Previous compilation stages are responsible to prepare the
+; code in such a way, that this is true). 
+
+
+rule nop #2 = "   nop" 
+
+;CLC,SEC
+rule let c, 0  #2 = "   clc"
+rule let c, 1  #2 = "   sec"
+
+;FLAG-specific conditional jumps
+
+rule ifeq %A, z, 0  #3 = "   jne %A"
+rule ifeq %A, z, 1  #3 = "   jeq %A"
+rule ifne %A, z, 0  #3 = "   jeq %A"
+rule ifne %A, z, 1  #3 = "   jne %A"
+
+rule ifeq %A, c, 0  #3 = "   jcc %A"
+rule ifeq %A, c, 1  #3 = "   jcs %A"
+rule ifne %A, c, 0  #3 = "   jcs %A"
+rule ifne %A, c, 1  #3 = "   jcc %A"
+
+rule ifeq %A, v, 0  #3 = "   jvc %A"
+rule ifeq %A, v, 1  #3 = "   jvs %A"
+rule ifne %A, v, 0  #3 = "   jvs %A"
+rule ifne %A, v, 1  #3 = "   jvc %A"
+
+rule ifeq %A, n, 0  #3 = "   jpl %A"
+rule ifeq %A, n, 1  #3 = "   jmi %A"
+rule ifne %A, n, 0  #3 = "   jmi %A"
+rule ifne %A, n, 1  #3 = "   jpl %A"
+
+;AND, OR, EOR
+
+rule and a,a,const %A:byte @zn #2 = "   and #%A"
+rule and a,a,%A:byte       @zn #3 = "   and %A"
+rule and a,a,%A$x          @zn #4 = "   and %A,x"
+rule and a,a,%A$y          @zn #4 = "   and %A,y"
+rule and a,a,@%A$y         @zn #5 = "   and (%A),y"
+rule and a,a,%A$(x-const %D)         @zn #4 = "   and %A-%A.index.min-%D,x"
+rule and a,a,%A$(y-const %D)         @zn #4 = "   and %A-%A.index.min-%D,y"
+
+rule or a,a,const %A:byte  @zn #2 = "   ora #%A"
+rule or a,a,%A:byte        @zn #3 = "   ora %A"
+rule or a,a,%A$x           @zn #4 = "   ora %A,x"
+rule or a,a,%A$y           @zn #4 = "   ora %A,y"
+rule or a,a,@%A$y          @zn #5 = "   ora (%A),y"
+rule or a,a,%A$(x-const %D)         @zn #4 = "   ora %A-%A.index.min-%D,x"
+rule or a,a,%A$(y-const %D)         @zn #4 = "   ora %A-%A.index.min-%D,y"
+
+rule xor a,a,const %A:byte @zn #2 = "   eor #%A"
+rule xor a,a,%A:byte       @zn #3 = "   eor %A"
+rule xor a,a,%A$x          @zn #4 = "   eor %A,x"
+rule xor a,a,%A$y          @zn #4 = "   eor %A,y"
+rule xor a,a,@%A$y         @zn #5 = "   eor (%A),y"
+rule xor a,a,%A$(x-const %D)         @zn #4 = "   eor %A-%A.index.min-%D,x"
+rule xor a,a,%A$(y-const %D)         @zn #4 = "   eor %A-%A.index.min-%D,y"
+
+;CMP,CPX,CPY
+;Compare is implemented as sub, where the result it stored only into
+;flag registers and not any other register.
+
+
+rule sub cznv, a, const %A:byte1 #2 = "   cmp #%A"
+rule sub cznv, a, %A$const %B    #3 = "   cmp %A-%A.index.min+%B"
+rule sub cznv, a, %A:byte1       #3 = "   cmp %A"
+
+rule sub cznv, x, const %A:byte1 #2 = "   cpx #%A"
+rule sub cznv, x, %A$const %B    #3 = "   cpx %A-%A.index.min+%B"
+rule sub cznv, x, %A:byte1       #3 = "   cpx %A"
+
+rule sub cznv, y, const %A:byte1 #2 = "   cpy #%A"
+rule sub cznv, y, %A$const %B    #3 = "   cpy %A-%A.index.min+%B"
+rule sub cznv, y, %A:byte1       #3 = "   cpy %A"
+
+;TAX,TAY,TYA,TXA++
+
+rule let x,a @zn   #2  = "   tax"
+rule let y,a @zn   #2  = "   tay"
+rule let a,x @zn   #2  = "   txa"
+rule let a,y @zn   #2  = "   tya"
+
+;LDX++
+
+rule let x,const %A:byte1  @zn #2 = "   ldx #%A"
+rule let x,%A$const %B     @zn #3 = "   ldx %A-%A.index.min+%B"
+rule let x,%A$y            @zn #4 = "   ldx %A-%A.index.min,y"
+rule let x,%A:byte1        @zn #3 = "   ldx %A"
+rule let x,%A$(y - const %D) @zn #4 = "   ldx %A-%A.index.min-%D,y"
+
+;LDY++
+rule let y,const% A:byte1  @zn #2 = "   ldy #%A"
+rule let y,%A$const %B     @zn #3 = "   ldy %A-%A.index.min+%B"
+rule let y,%A$x            @zn #4 = "   ldy %A-%A.index.min,x"
+rule let y,%A:byte1        @zn #3 = "   ldy %A"
+rule let y,%A$(x - const %D) @zn #4 = "   ldy %A-%A.index.min-%D,x"
+
+;LDA++
+rule let a,const %A:byte1  @zn #2 = "   lda #%A"
+rule let a,%A:byte1        @zn #3 = "   lda %A"
+rule let a,%A$const %B     @zn #3 = "   lda %A-%A.index.min+%B"
+rule let a,%A$x            @zn #4 = "   lda %A-%A.index.min,x"
+rule let a,%A$y            @zn #4 = "   lda %A-%A.index.min,y"
+rule let a,@%A$y           @zn #5 = "   lda (%A),y"
+rule let a,%A$(x - const %D) @zn #4 = "   lda %A-%A.index.min-%D,x"
+rule let a,%A$(y - const %D) @zn #4 = "   lda %A-%A.index.min-%D,y"
+
+;STA++
+rule let %A:byte1,     a @zn #3 = "   sta %A"
+rule let %A$const %B,  a @zn #3 = "   sta %A-%A.index.min+%B"
+rule let %A$(x - const %D), a @zn #5 = "   sta %A-%A.index.min-%D,x"
+rule let %A$(y - const %D), a @zn #5 = "   sta %A-%A.index.min-%D,y"
+rule let @%A$y,        a @zn #6 = "   sta (%A),y"
+
+;This is special instruction that 'touches' the specified variable (i.e.
+;writes any value into specified variable).
+;We use A register for this, but it does not really matter. 
+rule let %A:byte1, void @zn #3 = "   sta %A"
+
+;STX++
+rule let %A$const %B,  x @zn #3 = "   stx %A-%A.index.min+%B"
+rule let %A:byte1,     x @zn #3 = "   stx %A"
+;rule let %A$y,         x @zn #5 = "   stx %A-%A.index.min,y"
+
+;STY++
+rule let %A$const %B,  y @zn #3 = "   sty %A-%A.index.min+%B"
+rule let %A:byte1,     y @zn #3 = "   sty %A"
+;rule let %A$x,         y @zn #5 = "   sty %A-%A.index.min,x"
+
+;BIT
+;If we ignore the Z flag, we may consider bit to be let instruction assigning to void.
+rule let void, %A:byte1    @znv #3  = "   bit %A"
+rule and void, a, %A:byte1 @znv #3 = "   bit %A"
+
+;LSR,ASL
+
+;LSR++
+rule div ac, a, 2                  @zn #2    = "   lsr"
+rule div (%A:byte,c), %A, 2        @zn #5    = "   lsr %A"
+rule div (%A$const %B,c), %A$%B, 2 @zn #5    = "   lsr %A-%A.index.min+%B"
+rule div (%A$x,c), %A$x, 2         @zn #7    = "   lsr %A-%A.index.min,x"
+
+;ASL++
+
+;Following rule is necessary to allow translation of generic access array instructions.
+;It will be later optimized by optimizer, so it will never get generated.
+ 
+rule mul a, a, 1                   = ";!!!!!!!!!!"
+rule mul a, a, 2                @czn #2 = "   asl"
+rule mul %A:byte, %A, 2         @czn #5 = "   asl %A"
+rule mul %A$const %B, %A$%B, 2  @czn #5 = "   asl %A-%A.index.min+%B"
+rule mul %A$x, %A$x, 2          @czn #7 = "   asl %A-%A.index.min,x"
+
+;ror++
+
+rule rotr ac, ac, 1                     @zn #2 = "   ror"
+rule rotr (%A:byte1,c), (%A,c), 1       @zn #5 = "   ror %A-%A.index.min"
+rule rotr (%A$const %B,c), (%A$%B,c), 1 @zn #5 = "   ror %A-%A.index.min+%B"
+rule rotr (%A$x,c), (%A$x,c), 1         @zn #7 = "   ror %A-%A.index.min,x"
+
+;rol++
+rule rotl ac, ac, 1                     @zn #2 = "   rol"
+rule rotl (%A:byte1,c), (%A,c), 1       @zn #5 = "   rol %A-%A.index.min"
+rule rotl (%A$const %B,c), (%A$%B,c), 1 @zn #5 = "   rol %A-%A.index.min+%B"
+rule rotl (%A$x,c), (%A$x,c), 1         @zn #7 = "   rol %A-%A.index.min,x"
+
+
+;INX, INY, DEX, DEY
+rule add x,x,1 @zn #2 = "   inx"
+rule add y,y,1 @zn #2 = "   iny"
+rule sub x,x,1 @zn #2 = "   dex"
+rule sub y,y,1 @zn #2 = "   dey"
+
+;INC
+rule add %A:byte1,%A,1          @zn #5 = "   inc %A"
+rule add %A$const %B, %A$%B, 1  @zn #5 = "   inc %A-%A.index.min+%B"
+rule add %A$x, %A$x, 1          @zn #7 = "   inc %A-%A.index.min,x"
+
+;DEC
+rule sub %A:byte1,%A,1          @zn #5 = "   dec %A"
+rule sub %A$const %B, %A$%B, 1  @zn #5 = "   dec %A-%A.index.min+%B"
+rule sub %A$x, %A$x, 1          @zn #7 = "   dec %A-%A.index.min,x"
+
+;ADC
+rule add ca, a+c, const %A:byte1  @znv #2 = "   adc #%A"
+rule add ca, a+c, %A:byte1        @znv #3 = "   adc %A"
+rule add ca, a+c, %A$const %B     @znv #3 = "   adc %A-%A.index.min+%B"
+rule add ca, a+c, %A$(x-const %D) @znv #4 = "   adc %A-%A.index.min-%D,x"
+rule add ca, a+c, %A$(y-const %D) @znv #4 = "   adc %A-%A.index.min-%D,y"
+rule add ca, a+c, @%A$y           @znv #5 = "   adc (%A),y"
+;rule add as,a,%A$(x-const %D)  #4 = "   adc %A-%A.index.min-%D,x"
+;rule add as,a,%A$(y-const %D)  #4 = "   adc %A-%A.index.min-%D,y"
+
+;SBC
+rule sub as, ac, const %A:byte1  #2 = "   sbc #%A"
+rule sub as, ac, %A:byte1        #3 = "   sbc %A"
+rule sub as, ac, %A$const %B     #3 = "   sbc %A-%A.index.min+%B"
+rule sub as, ac, %A$x            #4 = "   sbc %A-%A.index.min,x"
+rule sub as, ac, %A$y            #4 = "   sbc %A-%A.index.min,y"
+rule sub as, ac, @%A$y           #5 = "   sbc (%A),y"
+rule sub as,a,%A$(x-const %D)  #4 = "   sbc %A-%A.index.min-%D,x"
+rule sub as,a,%A$(y-const %D)  #4 = "   sbc %A-%A.index.min-%D,y"
+
+
+;Special versions of let adr, that provide for upper and lower part of an address
+;Second argument defines the byte.
+;This instructions are generated by other rules on upper levels.
+
+rule let_adr a, %A$0 @zn #2 = "   lda #<%A"
+rule let_adr a, %A$1 @zn #2 = "   lda #>%A"
+
+rule let_adr x, %A$0 @zn #2 = "   ldx #<%A"
+rule let_adr x, %A$1 @zn #2 = "   ldx #>%A"
+
+rule let_adr y, %A$0 @zn #2 = "   ldy #<%A"
+rule let_adr y, %A$1 @zn #2 = "   ldy #>%A"
+
+rule lo a,%A$y     @zn #5 = "   lda %A_lo,y"
+rule lo a,const %A @zn #2 = "   lda #<%A"
+rule lo x,const %A @zn #2 = "   ldx #<%A"
+rule lo y,const %A @zn #2 = "   ldy #<%A"
+
+rule lo a,%A:byte1 @zn #3 = "   lda %A"
+rule lo x,%A       @zn #3 = "   ldx %A"
+rule lo y,%A       @zn #3 = "   ldy %A"
+
+rule hi a,%A$y          @zn #5 = "   lda %A_hi,y"
+rule hi a,%A:arr_of_arr @zn #2 = "   lda #>%A"
+rule hi a,const %A      @zn #2 = "   lda #>%A"
+rule hi a,%A:card       @zn #3 = "   lda %A+1"
+rule hi x,%A            @zn #3 = "   ldx %A+1"
+rule hi y,%A            @zn #3 = "   ldy %A+1"
+
+;These rules return hi and lo byte of an one byte array element
+rule lo a, %A:byte1arr(const %B) @zn #2 = "   lda #<(%A-%A.index.min+%B)"
+rule hi a, %A:byte1arr(const %B) @zn #2 = "   lda #>(%A-%A.index.min+%B)"
+
+rule lo x, %A:byte1arr(const %B) @zn #2 = "   ldx #<(%A-%A.index.min+%B)"
+rule hi x, %A:byte1arr(const %B) @zn #2 = "   ldx #>(%A-%A.index.min+%B)"
+
+rule lo y, %A:byte1arr(const %B) @zn #2 = "   ldy #<(%A-%A.index.min+%B)"
+rule hi y, %A:byte1arr(const %B) @zn #2 = "   ldy #>(%A-%A.index.min+%B)"
+
+rule goto @%A$0  #5 = "   jmp (%A)"					;TODO: goto @%A
+rule goto %A     #3 = "   jmp %A"
+
+;Miscelaneous
+
+;alloc takes two arguments: 
+;				result		variable to alloc
+;				arg1			constant with address (empty, if the address is not specified)
+
+rule vardef %A,%B   = "%A equ %B"
+rule vardef %A,%B(%C..%D) = "%A equ %B+%C*%B.elemsize"
+
+rule label %A   = "%A:"
+rule proc %A:proc     = "%A .proc"
+rule return %A:proc() #6 = "   rts"
+rule endproc %A:proc  = ".endp"
+rule call %A:proc()  #6 = "   jsr %A"
+rule call %A:adr  #14     = "   jsr *+6" "   jmp *+6" "   jmp (%A)"
+
+
+;This is definition of procedure, that can be used to output character
+system.printchar:proc chr@cpu.a
+
+;system.out will send the data following the call to specified output routine. 
+system.print:proc printchar_proc@(cpu.a,cpu.x):adr @system.buf @system.putchr_proc_adr @cpu.y
+
+system.print_out:proc @system.buf @system.putchr_proc_adr @cpu.a @cpu.x @cpu.y
+system.print_adr:proc a@_arr:adr @_arr @system.buf @system.putchr_proc_adr @cpu.a @cpu.x @cpu.y
+
+system.print_scr:macro = instr
+	call system.print_out
+
+std_format:macro d:adr = instr
+	let_adr _arr, d
+	call std_print_adr
+
+;rule print     = instr
+;	call std_print
+	
+;rule format    = instr
+;	call _std_print_adr
+
+rule str_arg %A:string  = "   dta b(%A.size),%'A"
+rule var_arg %A:byte   = "   dta b(129),a(%A)"
+rule var_arg %A:card   = "   dta b(130),a(%A)"
+;rule var_arg ,%A:adr    = "   dta b(130),a(%A)"
+rule var_arg %A:long   = "   dta b(131),a(%A)"
+rule var_arg %A:adr, %B:0..255 = "   dta b(128+64+1), a(%B), a(%A)"
+
+rule var_arg %A:sbyte  = "   dta b(129+32), a(%A)"
+rule var_arg %A:int    = "   dta b(130+32), a(%A)"
+
+rule data %A:string = "   dta %'A"
+rule data %A    = "   dta b(%A)"
+rule align %A    = "   .align %A"
+rule file %A     = "   ins '%A'"
+rule org  %A     = "   org %A"
+rule ptr %A$0  = "   dta b(<%A)"
+rule ptr %A$1  = "   dta b(>%A)"
+rule ptr %A    = "   dta a(%A)"
+rule debug  = "   brk"  "   dta b(0)"
+rule line      = ";### %0(%1) %2"
+
+rule include %A = "   icl '%A'"
+
+rule src_end    = ";end"
+
+;compiler rule defines the command line used to compile generated asm source
+; %A  defines name of the source code file (including the path) without extension
+; %B  extension of resulting binary as defined by platform
+; %/  defines path to directory with currently parsed file
+
+rule compiler %A,%B = "["]%/mads["] ["]%A.asm["] -o:["]%A.%B["] -x -l:["]%A.lst["]"

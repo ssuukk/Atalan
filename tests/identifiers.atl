@@ -1,0 +1,15 @@
+;Apostrophes may be used at the end of variable
+
+x = 5
+x' = x + 5
+x'' = x' + 5
+
+"[x] [x'] [x'']"
+assert "5 10 15"
+
+'#' = x' + 34
+
+"['#']"
+
+assert "44"
+

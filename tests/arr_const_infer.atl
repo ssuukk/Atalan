@@ -1,0 +1,8 @@
+;Test, that compiler is able to infer size and type of array constant.
+
+;const a:array = 1,2,3,4,5,6,7
+;assert a:array(0..6) of 1..7
+
+const b:array = 1,7,3,2,5,5,6
+assert b:array(0..6) of 1..7
+

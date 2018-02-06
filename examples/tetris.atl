@@ -1,0 +1,336 @@
+﻿; ATALAN Tetris
+; Tetris implemented in ATALAN Programming language
+; (c) 2010 Rudla Kudla
+
+use atari
+
+;Screen and DISPLAY LIST
+
+;This if GR.0 screen 40 characters width and 24 characters height
+;We force it to address $8000 to make it aligned correctly.
+
+out s@$8000:array(0..39,0..23) of byte
+
+;Display list is defined as constant array.
+;We do not specify size of the array, so it is cimputed automatically.
+;At the top are three empty lines 8 pixels height.
+;First line specifies the pointer to start of the data (see the reference to s).
+ 
+const dl:array = 3 times $70, $42, s, 23 times $02, $41, dl
+
+; Position of well on the screen (Left Margin, Right Margin, ...)
+const 
+	LM = 15
+	RM = 26
+	TM = 1
+	BM = 22
+
+	NEXT_LEFT = 29
+	NEXT_TOP  = 5 
+	
+const ;Graphics characters 
+	WALL_CHR = 69
+	RWALL_CHR = 70
+
+x:16..25	;x position of the falling tile
+y:1..21		;y position of the falling tile
+ti:0..15  ; size of tile definition (we use 4x4 tiles, so it is 16 bytes)
+c:byte
+nx:x			; new x position of tile
+ny:y      ; new y position of tile
+steps:0..20
+action'delay:0..10
+collision:bool
+j:0..3
+k:0..3
+down'lock:bool
+tile, next'tile:0..18
+ntile:tile
+score:0..30000
+
+;Array of tile shapes.
+; Base tile character is 64
+; If the left line should be empty, add 1
+; To make bottom line empty add 2
+
+const tiles:array(ti, tile) = (
+
+	0,65,0,0
+	0,65,67,0
+	0,66,0,0
+	0,0,0,0
+;--- 1	
+	0,0,0,0
+	0,65,64,0
+	0,66,67,0
+	0,0,0,0
+;--- 2
+	0,65,0,0
+	0,65,0,0
+	0,65,0,0
+	0,66,0,0
+;--- 3	
+	0,65,67,0
+	0,65,0,0
+	0,66,0,0
+	0,0,0,0
+;--- 4
+	66,68,0,0
+	0 ,65,0,0
+	0 ,66,0,0
+	0 ,0 ,0,0
+;--- 5
+	0,65,0,0
+	0,66,68,0
+	0,0,66,0
+	0,0,0,0	
+;--- 6	
+	0,0,65,0
+	0,65,67,0
+	0,66,0,0
+	0,0,0,0
+;--- 7
+	0,0,0,0
+	66,68,67,0
+	0,66,0,0
+	0,0,0,0
+;--- 8	
+	0,65,0,0
+	66,68,0,0
+	0,66,0,0
+	0,0,0,0
+;---9
+	0,65,0,0
+	66,67,67,0
+	0,0,0,0
+	0,0,0,0
+;--- 10  (-> 2)
+	0,0,0,0
+	66,67,67,67
+	0,0,0,0
+	0,0,0,0
+;--- 11  (->3)
+	0,0,0,0
+	66,67,68,0
+	0,0,66,0
+	0,0,0,0
+;--- 12
+	0,65,0,0
+	0,65,0,0
+	66,67,0,0
+	0,0,0,0
+;--- 13
+	65,0,0,0
+	66,67,67,0
+	0,0,0,0
+	0,0,0,0
+;--- 14
+	0, 0, 65,0
+	66,67,67,0
+	0, 0, 0, 0
+	0, 0, 0, 0
+;--- 15
+	0 ,65,0 ,0
+	0 ,65,0 ,0
+	0 ,66,67,0
+	0 ,0 ,0 ,0
+;--- 16
+	0,0,0,0
+	65,67,67,0
+	66,0,0,0
+	0,0,0,0
+;--- 17
+	0, 65,67,0
+	66,67,0, 0
+	0, 0, 0, 0
+	0, 0, 0, 0
+;--- 18
+	66,68,0, 0
+	0, 66,67, 0
+	0, 0, 0, 0
+	0, 0, 0, 0
+
+	)
+
+;Rotation array defines number of rotated tile for every tile
+ 
+const rotation:array(tile) of tile = 7, 1, 10, 11, 14, 17, 18, 8, 9, 0, 2, 12, 13, 3, 15, 16, 4, 5, 6
+
+draw'tile:proc(tile:tile x:x y:y) =
+	ti = 0
+	for j
+		for k
+			c = tiles(ti, tile)
+			if c <> 0 then s(x+k,y+j) = c
+			ti = ti + 1
+
+erase'tile:proc(tile:tile x:x y:y) =
+	ti = 0
+	for j
+		for k
+			c = tiles(ti, tile)
+			if c <> 0 then s(x+k,y+j) = 0
+			ti = ti + 1
+
+test'collision:proc tile:tile x:x y:y >coll:bool =	
+	coll = false
+	ti = 0
+	for j 
+		for k
+			c = tiles(ti, tile)
+			ti = ti + 1
+			if c <> 0 if s(x+k,y+j) <> 0 then return true
+
+
+;Initialize graphics.
+;We set display list, colors and font.
+
+sdlstl = dl
+COLOR0(2) = 0
+COLOR0(5) = 0
+set'font file "tetris.fnt"
+
+start'game@
+
+; Draw the well
+
+s(0,0) = "ATALAN TETRIS"
+s(NEXT_LEFT,3) = "NEXT"
+s(NEXT_LEFT,1)   = "SCORE: 0     "
+
+for y1:y
+	for x s(x,y1) = 0
+
+for y1:TM..BM
+  s(LM,y1) = WALL_CHR
+  s(RM,y1) = RWALL_CHR
+
+for x:LM..RM
+	s(x,BM) = WALL_CHR
+			
+action'delay = 0
+down'lock = false
+
+;Generate a new tile
+;New tile is always generated on same position.
+
+x,y = 19,1
+tile = RANDOM bitand 7
+next'tile = RANDOM bitand 7
+score = 0
+
+draw'tile next'tile NEXT_LEFT NEXT_TOP
+		
+loop@
+
+steps = 20
+	
+if STICK(0) = down and not down'lock then steps = 1
+	
+while steps > 0
+
+	draw'tile tile x y
+		
+	nx = x
+	ntile = tile
+
+	if STICK(0) <> down then down'lock = false
+	
+	;Move or rotate the tile (there is minimum delay between two actions)
+	if action'delay > 0
+		action'delay = action'delay - 1
+	else
+		action'delay = 6
+		if STICK(0) = right
+			inc nx
+		else if STICK(0) = left
+			dec nx		
+		else if STRIG(0) = pressed
+			ntile = rotation(tile)
+		else
+			action'delay = 0
+		
+	;Wait tick (synchronize with the screen)
+	timer = 0
+	while timer < 1
+		
+	erase'tile tile x y
+	
+	;move the tile to new position, if there is no collision
+
+	;collision = test'collision ntile nx y	
+	if not test'collision ntile nx y then
+		x = nx
+		tile = ntile
+	
+	dec steps
+
+	;Tile falls faster, if user keeps joystick down
+	if STICK(0) = down and not down'lock then
+			if steps > 5 then steps = 0
+			 
+
+;Tile moves down.
+			
+;collision = test'collision	tile x y+1
+
+if not test'collision(tile x y+1) then
+	inc y
+else
+	draw'tile tile x y 
+	
+	;=== remove full lines
+ 	
+	y,ny = 21
+	
+	while y >= 1
+		collision = false
+		for x where s(x,y) = 0 collision = true
+						
+		if collision then
+			for x s(x,ny) = s(x, y)
+			dec ny
+			dec y 
+		else
+			score = score + 1
+			; Line y will be skipped (it is not copied)
+			dec y
+			; The line above skipped line must be modified to cleanly 'cut' the tiles
+			for x
+				c = s(x,y)
+				if c = 64 then c = 67
+				if c = 65 then c = 66
+				if c = 68 then c = 67
+				s(x,y) = c 
+
+	s(29,1) = "SCORE: [score]"
+	
+	;If player holds down, we do not want the new tile to start falling fast
+	if STICK(0) = down then down'lock = true
+
+	;Next tile becomes falling tile and we generate and draw new next tile 
+	tile = next'tile
+	erase'tile next'tile NEXT_LEFT NEXT_TOP
+	next'tile = random bitand 7
+	draw'tile next'tile NEXT_LEFT NEXT_TOP
+	x,y = 19,1
+
+	;If the new tile collides immediatelly, the game is over
+		
+	if test'collision tile x y then goto game'over
+		
+goto loop
+
+;The game is over.
+;Display message and wait for the player to press the button to play again.
+	
+game'over@
+
+s(19,10) = "GAME"
+s(19,11) = "OVER"
+
+until STRIG(0) = pressed
+
+erase'tile next'tile NEXT_LEFT NEXT_TOP
+
+goto start'game

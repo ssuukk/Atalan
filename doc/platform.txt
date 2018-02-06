@@ -1,0 +1,46 @@
+*******************************
+How to define your own platform
+*******************************
+
+To create new platform for Atalan, it is necessary to create platform module.
+
+Platform module for platform named XXX is stored in file
+:::::::::::::::: 
+%SYSTEM%/platform/XXX/XXX.atl
+::::::::::::::::
+directory.
+
+==============
+Print routines
+==============
+
+Processor file defines routines for printing.
+If a platform supports text output (not all do), it should define character
+printing routine.
+
+The routine must be named _out_putchr and print ASCII character specified in 
+register A.
+
+Platform must also specify routine _adr_putchr with same interface.
+This routine should store the character specified in A to address specified
+by variable _arr.
+
+This is default implementation.
+
+::::::::::::::::::::::::::::::
+_adr_putchr .proc
+;Write byte to address specified by _arr and increment the address by 1.
+		 	
+	ldy #0
+	sta (_arr),y
+
+	inc _arr
+	bne skip1
+	inc _arr+1
+skip1
+	rts
+::::::::::::::::::::::::::::::
+
+As this is commonly used to output to memory mapped screen, this routine may need
+to perform some conversion of character encoding.
+(This is for example done on Atari platform.) 

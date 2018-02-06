@@ -1,0 +1,5 @@
+use ZXSpectrum
+
+for i:color
+	ink i 
+	"Hello ZX Spectrum"

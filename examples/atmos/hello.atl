@@ -1,0 +1,5 @@
+;Minimal application for Atmos
+
+use atmos
+
+scrlo(3,4) = "Hello, World!"

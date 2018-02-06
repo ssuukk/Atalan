@@ -1,0 +1,153 @@
+﻿Atalan implements interval type inferencing. 
+It tries to infer set of possible values of the result of every operator in the
+code. So it not only deduces, that the variable should be integer, but also
+the set of possible values.  
+  
+The following examples use type assert. 
+::assert x:min..max:: makes sure the compiler at specified line 
+inferred the range of variable x to be min..max.
+ 
+;Basic type inference 
+in x:10..20
+y = x 
+assert y:10..20   ;For input variables, Atalan uses the defined type
+y = x * 2 
+assert y:20..40 
+y = y + 5 
+assert y:25..45 
+z = y - 30 
+assert z:-5..15 
+
+;Conditions are recognized
+in x:10..20 
+y = x * 2 
+assert y:20..40 
+if y > 30 
+    y = 30 
+assert y:20..30 
+if y <= 25 then y = 26 
+assert y:26..30 
+
+;Some loops are supported
+x = 10 
+while x < 100 
+    inc x 
+    assert x:11..100 
+assert x:100..100 
+x = 3 
+while x <= 23 
+    inc x 
+    assert x:4..24 
+assert x:24..24
+ 
+;Dependent varibles in loop may be computed
+y = 1 
+for x:0..7 
+   inc y 
+assert y:9..9 
+
+
+Benefits of type inferencing
+
+- You don't need to declare types of local variables, leading to shorter,
+  more readable code. It is easier to introduce a new local variable,
+  so you can create some extra ones, with meaningfull names, which
+  will further improve code readability.
+  
+- With exact interval type inferencing, the compiler may statically check
+  array bounds errors, incorrect asignment errors etc.
+
+- Inferred types may be used for optimizations.
+
+- With proper interval type inferenced, compiler can produce correct code
+  in most situations. For example when computing expression like ::(a * b) / 128::
+  where a and b are in range 0..127, compiler will correctly use 2 byte temporary
+  variable for the result of multiplication, even if the final result is only byte again.
+  
+- Types may be inferred for procedure arguments and local variables (these are two
+  diferents algorithms).
+	
+
+For every instruction:
+
+1. We were able to infer the type of the result of the instruction
+  a. Type of the result was declared explicitly
+     Report error, if the declared type is not superset of inferred type
+     
+  b. Type of the result was not declared explicitly
+     That's ok. Inferencer does it's work.
+     
+2. We were not able to infer the type of the result of the instruction
+  a. Type of the result was declared explicitly
+     Do not report error. The type declared explicitly is considered correct
+     
+  b. Type of the result was not declared explicitly
+     Report error. Ask programmer to declare type of the result explcitly.  
+  
+
+
+There are three different kinds of type:
+
+1. Declared (DT)
+
+This is type, explicitly declared by the programmer.
+
+2. Inferred (IT)
+
+Inferred type is minimal type the variable must have to be able to contain
+all values assigned to it during computation.
+Inferred type is computed by the compiler.
+
+If the variable has not been declared, the required type will be used as it's type.
+
+Error: It is an error, if IT is not subset of DT. 
+
+Warning: For variables, that are not locked at given address, warning may be reported
+if the required type is smaller than declared type. 
+ 
+3. Constraint (CT)
+
+This type defines maximal range a variable may have before it is used 
+in particular instruction. For example
+
+x:array (0..7)
+let x(i), 10
+
+restricts possible type of i to the range 0..7 (otherwise the assigmnent 
+would cause out of bounds error).
+
+
+Assert: RT ⊆CT 
+
+
+
+Type should have flag, spcifying whether it is a restriction or requirement.
+
+
+
+
+- Restriction is derived for given instruction based on it's arguments
+- Instruction result does not generate restriction
+- Array element index argument is an restriction
+- Restriction is specified for a variable
+  
+
+
+Type inferencer steps
+=====================
+
+1. Try to deduce types based on code (i.e. as there was no type information at all)
+   The only restriction to this rule are types of input registers, as there is no
+   hope those could be deduced.
+   
+2. At places, where we were not able to deduce types of source variables, use the
+   type decladed explicitly by programmer.
+   
+3. Run the deduction, so the explicitly defined types may be used to deduce more
+   type information.
+   
+4. Use restriction information.
+
+
+
+    

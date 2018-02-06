@@ -1,0 +1,54 @@
+******
+Atalan
+******
+
+Atalan is new high level experimental programming language for system programming.
+It is meant to be used for development on 8bit computers like Atari 800,
+C64, ZX Spectrum and other small (embedded) systems etc. 
+
+Compiler is rule driven and extremely retargettable. It is very easy to add
+support for new platform and it is possible to provide support for new CPU
+without touching the compiler source code. Programmers can easily provide support
+for new data types or operators.
+
+Atalan is cross-platform development system. Compiler runs on desktop machine
+(Windows, Linux, OSX - it is developed just using ANSI C, so porting to other 
+systems should be straightforward).
+
+========
+Warning!
+========
+
+When I say Atalan is a work in progress, I mean it. There are bugs, features
+may go missing or appear erratically, semantics may evolve. I shape the Atalan according to my needs
+and ideas about ideal (or at least good) programming language. Some of the Atalan
+features are highly experimental (for example type inferencer or rule driven translation). 
+
+If you are looking for a stable development tool and have no desire to be involved
+in the development of the programming language, you have to look somewhere else.
+If you feel adventurous, you are most welcome to come and play with Atalan.
+
+ 
+=================
+Language Features
+=================
+
+- structured programming (if then else, while, until)
+- powerful loop construct (for k where sieve(k) = 1 until KEY = Q)
+- enumerations
+- procedures
+- nested procedures
+- functions with multiple return values
+- macros
+- numeric types defined using range (min..max)
+- variables may be stored in user defined place
+- blocks defined by parentheses, indent or one line
+- local scope rules for constants
+- type associated constants  (type hour:0..23 (noon = 12 midnight = 0))
+- multidimensional arrays
+- support for interrupts
+- chained relational operators (10 < x <= 100)
+- parametrized modules 
+- type inferencing
+- possibility to call assembler routines including definition of register arguments
+

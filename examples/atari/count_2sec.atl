@@ -1,0 +1,15 @@
+﻿;Simple benchmark ATALAN programm.
+;
+;On Atari 800 XL (Altirra emulator, PAL) this counts to 179704.
+
+use atari
+
+"Counting 2 seconds..."
+
+count = 0
+timer = 0
+until timer = 100
+  inc count
+  assert count < 2'000'000
+  
+"Counted to [count]."

@@ -1,0 +1,96 @@
+; 'NES-input example'
+;---------------------------------------------------------------------
+; Implemented in ATALAN Programming language
+; by Marcel Cevani
+; 23.03.2011
+; 
+;---------------------------------------------------------------------
+; This is an example that reads the current Buttonstate of the Joypad 1 
+; and moves the hanuman sprite if LEFT,RIGHT,UP,DOWN button is pressed
+; Please run the buildSprite.bat file, it append the gfx data to the rom
+; Tnx to Patater for his nice Nes dev tutorials (http://www.patater.com/nes-asm-tutorials) ;)
+; gfx test data is from playpower.org game hanuman quiz
+; NROM:
+; Max codesize   : 16Kib
+; Max gfxsize    : 4Kib
+; Emulator tested: fceux (2.1.4a)
+;---------------------------------------------------------------------
+; NROM rom layout:
+; Max codesize : 16Kib
+; Max gfxsize  : 4Kib
+;---------------------------------------------------------------------
+;  Tnx to Atalan the snake & rudla :)
+;---------------------------------------------------------------------
+
+use nes
+use nes_sprite
+use nes_input
+
+; Hanuman sprite pal (taken from Hanuman Quiz game)
+const hanuspritePal:sprPal = ($21,$16,$0f,$38,$21,$16,$38,$18,$21,$30,$2e,$06,$21,$17,$27,$28)
+
+; start of example
+start_example@
+
+waitvbl
+waitvbl
+; set Display Mode
+setDisplayMode %00001000 %00010000
+
+; loading pal
+waitvbl
+sprLoadPal hanuspritePal
+; Position of sprite
+xPos: 0..255
+yPos: 0..255
+
+xPos = 100
+yPos = 100
+ 
+; wait until we are in vblank
+waitvbl
+
+main@
+; wait until we are in vblank
+waitvbl
+; Start of profiling
+CPU_PROF_START = 1
+
+; read out the Buttonstate of Joypad 1
+keysPressed = getJoyPad1State
+
+; right pressed?
+if (keysPressed bitand JOYPAD_RIGHT <> 0)
+    inc xPos 
+; left pressed?
+if (keysPressed bitand JOYPAD_LEFT <> 0)
+    dec xPos 
+; up pressed?
+if (keysPressed bitand JOYPAD_UP <> 0)
+    dec yPos 
+; down pressed?
+if (keysPressed bitand JOYPAD_DOWN <> 0)
+    inc yPos 
+; move Sprite
+setSprite  6  $68 xPos + 10   yPos + 10
+setSprite  7  $69 xPos + 18   yPos + 10
+setSprite  8  $78 xPos + 10   yPos + 18
+setSprite  9  $79 xPos + 18   yPos + 18
+setSprite  10 $7A xPos + 26   yPos + 18
+setSprite  11 $88 xPos + 10   yPos + 26
+setSprite  12 $89 xPos + 18   yPos + 26
+setSprite  13 $8A xPos + 26   yPos + 26
+setSprite  14 $98 xPos + 10   yPos + 34
+setSprite  15 $99 xPos + 18   yPos + 34
+setSprite  16 $7B xPos + 34   yPos + 26
+setSprite  17 $8B xPos + 34   yPos + 26
+setSprite  18 $9A xPos + 26   yPos + 34
+; End of profiling 
+CPU_PROF_END = 1
+goto main
+
+
+
+
+
+

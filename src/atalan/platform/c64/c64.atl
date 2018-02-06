@@ -1,0 +1,25 @@
+﻿;********************************
+;ATALAN C64 Platform definition
+;********************************
+
+;Define, which processor the platform uses.
+
+use m6502
+
+;prologue is emitted at the beginning of the generated assmbler file.
+;Here you can define header of output binary and the starting address of an application.
+rule prologue = "   opt f+ h-" "_CODE_START equ $801" "   org [a(_CODE_START)],_CODE_START" "   dta a($80c), a(10), b($9e), c'2061', b(0), a(0)"
+
+;epilogue is emitted at the end of code. 
+rule epilogue = "   rts"
+
+;code_end is instruction emitted after the end of code.
+rule code_end = "_CODE_END equ *-1"     
+rule line      = ";### %0(%1) %2"
+
+;BIN_EXTENSION defines extension of the resulting binary file produced by compiler.
+BIN_EXTENSION: "prg"
+
+;VARHEAP defines memory area that can be used by Atalan to allocate variables.
+type VARHEAP:128..255   
+

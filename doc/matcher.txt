@@ -1,0 +1,21 @@
+﻿Atalan pattern matching
+
+Recursive array matching
+
+rule data %A:element\%B:array =
+   
+
+
+Variable and instruction are the same.
+   
+There are just following instructions:
+
+let  <var>, <expr>
+if   <cond>, <code>
+if   true,  <code>      ; goto
+call <proc>,<arguments>
+return <argumets>
+val  <val>, <type>
+var  <name>, <type>
+
+Procedure is variable, that has code as an argument.

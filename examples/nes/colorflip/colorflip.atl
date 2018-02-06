@@ -1,0 +1,51 @@
+; 'NES background example'
+;---------------------------------------------------------------------
+; Implemented in ATALAN Programming language
+; by Marcel Cevani
+; created 14.01.2011
+;---------------------------------------------------------------------
+; This is example a background is displayed by loading pal and nametable data PPU chip.
+; Please run the buildBg.bat file, it append the gfx data to the rom
+; Tnx to Patater for his nice Nes dev tutorials (http://www.patater.com/nes-asm-tutorials) ;)
+; gfx test data is from playpower.org game hanuman quiz
+; NROM rom layout:
+; Max codesize : 16Kib
+; Max gfxsize  : 4Kib
+; Emulator tested: fceux (2.1.4a) , needs old PPU enabled!
+;---------------------------------------------------------------------
+; changed by Marcel Cevani 31.01.2011
+;  - clean up souce code
+;  Tnx to Atalan the snake & rudla :)
+
+use nes
+use nes_sprite
+
+
+color:0..3
+
+; start of example
+start_example@
+
+; Wait 2 vblanks, then the NES is ready for us
+waitvbl
+waitvbl
+
+; setup PPU (enable backgroud)
+setDisplayMode %00000000 %00001000
+
+main@
+; wait until we are in vblank
+waitvbl
+
+if color = 0
+   PPU_REG2 = 128
+if color = 1
+   PPU_REG2 = 64
+if color = 2
+   PPU_REG2 = 32
+    
+inc color
+
+if color = 3
+   color = 0
+goto main

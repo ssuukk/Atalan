@@ -1,0 +1,33 @@
+﻿; Sieve of Erastosthenes
+; Demo program for ATALAN programming language
+;(c) 2011 Rudla Kudla
+
+use atari
+
+const TOP = 8191
+type range:0..TOP
+is_prime:array(range) of bool
+
+"Computing primes..."
+
+is_prime(..) = true
+
+timer = 0
+
+for i:2..sqrt(TOP)+1 where is_prime(i)
+	j = i * 2
+	while j <= TOP
+		is_prime(j) = false
+		j = j + i
+
+time = timer
+
+"Time used: [time] ticks"
+"Press Q to quit, any other key for list"
+
+wait'key
+
+for i:range where is_prime(i) until CH = Q
+	"[i]"
+
+CH = none

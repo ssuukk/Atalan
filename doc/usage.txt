@@ -1,0 +1,31 @@
+﻿*********************
+Atalan Compiler Usage
+*********************
+
+atalan.exe is command line utility. Specify name of source code to compile as 
+an argument (source come nust have .atl extension, it is not necessary to specify it in argument). 
+The compiler will generate file *.asm. If mads.exe is in the 
+same directory as the compiler, *.asm is automatically compiled and
+*.xex is produced.
+
+You may specify following switches (each after minus):
+
+- -v Verbose (will write lot of internal information on screen)
+- -a Do not call assembler after compilation
+- -p <platform>  Define for which platform is the program compiled.
+- -o <level>     Optimization level (0..9)
+                 0 = no optimizations
+
+For example to compile example stars.atl, type
+::::::::::::::::::
+atalan stars
+::::::::::::::::::
+
+stars.asm, stars.lst and stars.xex will be generated.
+Resulting binary file may have different extension than xex, if the target
+platform is not Atari.
+
+To compile hello_world for Atmos platform, type
+::::::::::::::::::
+atalan -p atmos hello_world
+:::::::::::::::::::

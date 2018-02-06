@@ -1,0 +1,19 @@
+;Atalan IF operator test
+
+out ox@10:0..200
+in  ix@10:0..200
+
+ox = 100
+
+z = if ix = 100 then 5 else 15
+
+assert z = 5
+
+ox = 110
+
+z = if ix = 100 
+       5 
+	else 
+	   15
+
+assert z = 15

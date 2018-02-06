@@ -1,0 +1,65 @@
+﻿Bank support
+
+We can use memory banks to store:
+
+- procedures
+- data (constant arrays)
+- variables (arrays)
+
+A bank is a piece of memory, that is not directly accessible in address space
+and must be first turned on to become addressable.
+
+
+Bank has following properties:
+
+- address on which it maps (it is constant)
+- size (or last address on which it maps)
+- macro, which when executed will turn that bank on 
+  (while turning off banks in same address space)
+
+- instruction, that will be generated to code to start and end the bank
+
+
+Banked procedures
+=================
+
+Every procedure is stored in exactly one bank. Procedure can not cross the bank boundary.
+
+When calling a procedure, we may have three situations:
+
+
+Procedures in same bank
+-----------------------
+
+Called procedure is either in the same bank, or is in non-banked memory.
+We just need to jump in a normal way.
+
+Procedure in non-mutex bank
+---------------------------
+
+Called procedure is in different bank, but the bank is mapped to different 
+address space than bank of the caller.
+
+We must first turn the bank on and then call it.
+
+Procedure in mutex bank
+-----------------------
+
+Called procedure is in different bank and this banks address space intersects calling procedure
+bank address space.
+
+We must create routine in some bank, non-mutex to both banks and call it. The routine will
+turn on the called bank and call the routine. On return, it will turn on the callers bank back
+and return. 
+
+Procedures with arguments after call
+------------------------------------
+
+Must reside in non-banked memory, as switching bank would disable access to the arguments.
+
+Banked procedures optimization
+==============================
+
+We need to reduce the number of mutex calls.
+So we must put together procedures, that call themselves.
+

@@ -1,0 +1,9 @@
+﻿;ATALAN Example program
+;Author: Rudla Kudla
+
+use atari
+
+until strig#0 = pressed
+	m = lo (VCOUNT * 2 + TIMER) 
+	wait'line   
+	COLPF#2,COLBK  = m,m

@@ -1,0 +1,220 @@
+﻿*********************
+ATALAN Atari platform
+*********************
+
+::index::
+
+************
+Introduction
+************
+
+This document describes standard ATALAN library for ATARI 8-bit platform.
+Some parts of this text require good knowledge of ATARI platform.
+
+*******************
+Basic memory layout
+*******************
+
+Application starts at $2000.
+When it ends, infine loop is performed.
+If you want to exit to DOS, execute DOS command at the end of application.
+
+Variables are placed in zero page starting from address 128.
+
+********************
+Supported data types
+********************
+
+- 0..255
+- 0..65535 - not all operations supported yet
+- 0..16777215 - very limited (only assignment and increment)
+- array(0..255) of byte
+- array(0..65535) of byte
+- array(0..255,0..255) of byte - two dimensional array
+
+**********************
+Printing
+**********************
+
+Printing strings is done using standard OS routine.
+When printing into arrays, it is supposed the array is displayed
+on screen and conversion to ATARI screen codes is performed.
+
+************
+PMG
+************
+
+Atari has hardware support for sprites: players and missiles.
+
+=======
+Players
+=======
+
+There are four players numbered 0 to 3.
+Player properties are accessed using player(x).property syntax.
+
+Following properties are defined:
+:::::::::
+x        X position of a player ($d000..$d003)
+color    hardware color (use in DLI or when system VBI is turned off) ($d012..$d015)  
+scolor   system color (704..707)
+size     width of the sprite ($d008..$d00b)
+gfx      byte with current player data ($d00d..$d010)
+bitmap   array with bitmap for the player
+:::::::::
+
+=========
+Missiles
+=========
+
+There are four missiles numbered 0 to 3.
+Missile properties are accessed using missile(x).property syntax.
+Every missile has same color as appropriate player (unless specified differently).
+You may set the color either by using player(x).color or misile(x).color.
+::::::::
+x        X position of a player ($d000..$d003)
+bitmap   all missiles share the same bitmap (2 bits for each missile)
+size     size of bitmaps ($d00c)
+gfx      byte with current missiles data
+color    Missile color.
+::::::::
+=========================
+PMG memory initialization
+=========================
+
+To use PMG, it is necessary to define PMG memory and set it to appropriate register.
+It is also necessary to allow DMA for PMG. This is done by setting two registers.
+
+As registers, specifying this are not used only for PMG, they are not part of
+PMG namespace.
+
+Following piece of code performs necessary initialization.
+
+::::::::::::::::::
+init'pmgbase
+
+DMACTL = playfield + dl + players + missiles + hires_sprites
+GRACTL = players + missiles
+::::::::::::::::::
+
+It also defines width of playfield, and use of hires sprites.
+
+=====================================
+Specifying PMG memory address manualy
+=====================================
+
+Atalan will assign memory address to PMG automatically. If you want to specify
+some specific address in memory, you can do this by declaring address of pmg.memory
+variable.
+
+::::::::::::::::::::::::::
+pmg.memory@$8000
+::::::::::::::::::::::::::
+
+************************
+Fonts
+************************
+
+Font is 1024 bytes (128 chars, 8 bytes per character) aligned on one-kb boundary
+Font will be usually defined using const array and file initializer.
+To use such font use set'font macro.
+
+::::::
+const myfont:font = file "file.fnt"
+set'font myfont	    
+:::::::
+
+If you set the font only at one place (i.e. you are using just one font), you can
+specify the file directly.
+
+::::::
+set'font file "file.fnt"	    
+::::::
+
+**********
+Interrupts
+**********
+
+It is possible to write interrupt routines directly in ATALAN.
+Compiler will create appropriate code to 
+ 
+===
+VBI
+===
+
+VBI procedures are executed every frame (1/50s on PAL, 1/60 on NTSC).
+Defered VBI is used (consult ATARI ROM manual to understand what it means),
+so hardware registers must be used to change colors etc.
+
+VBI procedure must be of type VBI. It takes no arguments.
+
+To activate the interrupt, use on'vbi procedure.
+
+:::::::::::::::::::::::::::::::::::::
+cycle'color:vbi =
+	inc	COLOR0(5)
+	COLBK = COLOR0(5)		;as we are using deferred VBI, we must copy the color to hardware register
+
+on'vbi cycle'color   
+:::::::::::::::::::::::::::::::::::::
+
+===
+DLI
+===
+
+*****
+Music
+*****
+
+Atalan supports <a href="http://raster.atari.org">Raster Music Tracker</a> modules for playing music in module rmt.
+
+
+:::::::::::::::::::::::::::::::
+;We must inform compiler that we are going to use Raster Music Tracker (rmt).
+use rmt
+
+;Declare the module to use.
+
+const musmod:array = file "delta.rmt"
+
+;Initialize the music engine (specify, which module to use)
+music'init musmod
+
+;It is necessary to call the music'play routine every 1/50 of second.
+;We will call it from VBI, here we prepare the appropriate routine.
+;It is of course possible to add other functionality to VBI, if necessary.
+
+play:vbi =
+	music'play
+
+;Start playing (set the vbi to our routine).
+;We cannot set the music'play routine directly to VBI, because it is normal
+;subroutine, not interrupt routine.
+
+on'vbi play
+ 
+"Done."
+:::::::::::::::::::::::::::::::
+
+
+:::::::::::::::::::::::::::
+music'init(module:adr track:byte = 0)
+:::::::::::::::::::::::::::
+
+adr specifies byte array containing the module, track is optional argument specifying
+which track of the module to start playing (for example when module contains multiple songs). 
+
+********
+Commands
+********
+
+===
+DOS
+===
+Exit to DOS
+
+=========
+wait'line
+=========
+
+Wait for the end of current scan-line. (Performs sta WSYNC).

@@ -1,0 +1,29 @@
+K 25
+svn:wc:ra_dav:version-url
+V 42
+/svn/!svn/ver/168/trunk/examples/nes/input
+END
+input.atl
+K 25
+svn:wc:ra_dav:version-url
+V 52
+/svn/!svn/ver/168/trunk/examples/nes/input/input.atl
+END
+hanuman_quiz_game.chr
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/svn/!svn/ver/168/trunk/examples/nes/input/hanuman_quiz_game.chr
+END
+input.nes
+K 25
+svn:wc:ra_dav:version-url
+V 52
+/svn/!svn/ver/168/trunk/examples/nes/input/input.nes
+END
+buildInput.bat
+K 25
+svn:wc:ra_dav:version-url
+V 57
+/svn/!svn/ver/168/trunk/examples/nes/input/buildInput.bat
+END

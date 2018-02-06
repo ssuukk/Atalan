@@ -1,0 +1,29 @@
+﻿;Atalan Test
+; Array(0..255) of Array(0..127) of 0..65535
+
+qty:array(0..255) of array(0..100) of 0..65535
+	
+in ai@10:0..255
+out ao@10:0..255
+in bi@11:0..255
+out bo@11:0..255
+	
+const N = 13*256+73
+
+ 
+;Initialize the array from byte value
+
+ao = 10
+bo = 255
+
+;for i:0..100
+qty(ai)(5) = bi * 2
+
+;qty(10)(3) = 10007
+;qty#10#3 = 10007
+
+y = qty(10)(5)
+
+assert y = 510
+
+	  

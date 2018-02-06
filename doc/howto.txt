@@ -1,0 +1,76 @@
+﻿*************
+ATALAN How To
+*************
+
+::index::
+
+************************************
+Using assembler routines from Atalan
+************************************
+
+It is possible to use assembler routines in Atalan.
+
+For every atalan module (source code file with .atl extension), there can be
+associated file with .asm extension. If this file exists, it will be automatically
+included. You can put your assembler routines there.
+
+To be able to call the assembler routine as an ordinary Atalan procedure, you need
+to declare it's header.
+
+In this header, you must specify list of input and output arguments, their location
+and list of variables the procedure uses (trashes).
+
+As an example, we will use zero function, that will set the specified block of memory with specified byte 
+
+:::::::
+fill_mem:proc adr@(cpu.a,cpu.x):adr size@cpu.y:0..255 b@fb:byte @cpu.a @cpu.x @cpu.y @arr
+:::::::
+
+This declares procedure with three input arguments.
+
+'adr' specified address of first byte to erase. The address will be passed
+in CPU registers A and X. A will contain lower byte of address. X will contain higher
+byte of the address.
+
+'size' specifies number of bytes to fill (0..255). It will be passed in register Y.
+
+The byte to use for fill 'b' will be passed in variable fb.
+
+When executed, the procedure will use CPU registers A,X,Y and variable arr. Their value
+is trashed i.e. set to some undefined value.
+
+It is necessary to specify the trashed registers and variables, otherwise optizer
+will expect their value to be same as on procedure entry.
+
+**********************************************
+Sharing variables between Atalan and assembler
+**********************************************
+
+When it is necesary to access same variable both from Atalan and assembler, you must
+first declare the variable in Atalan.
+
+You can then refer to that variable in your assembler using directly it's name.
+
+:::::::::::::::
+## var.atl
+speed:0..100
+
+## var.asm
+
+lda #30
+sta speed
+
+:::::::::::::::
+
+You can also define the address of the variable in Atalan.
+In such case, it is possible to access the variable in assembler either by
+it's name, or directly using the address (not recommended).
+
+If you forget to declare the variable, you will get an assembler error
+
+:::::::::::::::::
+var.asm (3) ERROR: Undeclared label speed (BANK=0)
+    sta speed
+:::::::::::::::::
+
+ 

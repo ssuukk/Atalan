@@ -1,0 +1,49 @@
+****************************
+ATALAN Console 6502 platform
+****************************
+
+::index::
+
+************
+Introduction
+************
+
+Con6502 platform compiles programs that can be run on PC using con6502 command.
+Con6502 command is part of Atalan distribution.
+It executes the application by simulating the 6502 processor and writes
+output to standard output.
+
+It is mainly used for Atalan testing purposes.
+
+*****************
+Compiling program
+*****************
+
+Use -P con6502 switch to compile console 6502 platform.
+
+For example
+::::::
+atalan -P con6502 hello_world
+::::::
+
+ 
+*******************
+Basic memory layout
+*******************
+Code is generated from address $400.
+
+**********************
+Printing
+**********************
+
+All output is printed to standard output.
+
+********************
+Special instructions
+********************
+
+con6502 implements two special instructions.
+
+$ff will print the ASCII character specified in register A on screen.
+
+$ef will terminate the virtual computer (and thus the application).

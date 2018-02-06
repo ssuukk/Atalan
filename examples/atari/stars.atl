@@ -1,0 +1,53 @@
+﻿; Horizontal Stars
+; Demo program for ATALAN programming language
+;(c) 2011 Rudla Kudla
+
+use atari
+
+type video_line:4..242 ; video lines numbered 4..242 are visible on screen
+
+;There is one star on every video line.
+;For every star, we define x coordinate, speed and color.
+x:array(video_line) of byte
+speed:array(video_line) of 1..4
+col:array(video_line) of color
+
+;Turn off screen, so we have nice black deep space.
+
+DMACTL = off
+GRACTL = off
+
+;Initialize stars positions, speeds and colors.
+
+for y:video_line 
+	x(y)  = RANDOM
+	speed(y) = RANDOM mod 4 + 1
+	col(y)   = RANDOM bitor 3			;make the star color light enough 
+
+;We use sprite 0 to create stars. Set it up so, that it is 1 pixel height
+;column over whole height of screen.
+
+player(0).gfx = %00000001
+player(0).size = 0
+
+until STRIG(0) = pressed
+	
+	;Wait for the first visible video line to appear
+	until VCOUNT = video_line.min 
+		wait'line
+	
+	;On every line, change position and color of sprite 0 to create separate stars	
+	for y:video_line
+		player(0).color = col(y)
+		player(0).x = x(y)
+		
+		;Move the star to next position. We want the star positions to overflow
+		;back to 0, so we use the 'lo' operator to limit the result to 0..255.
+
+		x(y) =  lo (x(y) + speed(y))
+		wait'line
+
+;Turn off sprite and turn on screen
+
+player(0).gfx = 0
+DMACTL = dl + playfield 

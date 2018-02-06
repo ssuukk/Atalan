@@ -1,0 +1,82 @@
+; 'NES-sprite example'
+;---------------------------------------------------------------------
+; Implemented in ATALAN Programming language
+; by Marcel Cevani
+; 14.01.2011
+; 
+;---------------------------------------------------------------------
+; This is example some sprites are displayed by sending the OAM data to the PPU chip.
+; Please run the buildSprite.bat file, it append the gfx data to the rom
+; Tnx to Patater for his nice Nes dev tutorials (http://www.patater.com/nes-asm-tutorials) ;)
+; gfx test data is from playpower.org game hanuman quiz
+; NROM:
+; Max codesize   : 16Kib
+; Max gfxsize    : 4Kib
+; Emulator tested: fceux (2.1.4a) , needs new PPU enabled!
+;---------------------------------------------------------------------
+; NROM rom layout:
+; Max codesize : 16Kib
+; Max gfxsize  : 4Kib
+;---------------------------------------------------------------------
+; changed by Marcel Cevani 01.02.2011
+;  - clean up souce code
+;  - created some simple lib's for controlling sprites (no dma)
+;  - changed gfx to Hanuman quiz
+;  Tnx to Atalan the snake & rudla :)
+;---------------------------------------------------------------------
+
+
+use nes
+use nes_sprite
+
+; Hanuman sprite pal (taken from Hanuman Quiz game)
+const hanuspritePal:sprPal = ($21,$16,$0f,$38,$21,$16,$38,$18,$21,$30,$2e,$06,$21,$17,$27,$28)
+
+; start of example
+start_example@
+
+waitvbl
+waitvbl
+; set Display Mode
+setDisplayMode %00001000 %00010000
+
+; loading pal
+waitvbl
+sprLoadPal hanuspritePal
+; Scrool pos of sprite
+scroolXPos: 0..255
+
+scroolXPos = 0
+
+; wait until we are in vblank
+waitvbl
+; First display ATALAN text
+setSprite 0 $41 10+90  110  ; A
+setSprite 1 $54 20+90  110  ; T
+setSprite 2 $41 30+90  110  ; A
+setSprite 3 $4C 40+90  110  ; L
+setSprite 4 $41 50+90  110  ; A
+setSprite 5 $4E 60+90  110  ; N
+
+main@
+; wait until we are in vblank
+waitvbl
+CPU_PROF_START = 1
+setSprite  6  $68 scroolXPos + 10    10
+setSprite  7  $69 scroolXPos + 10+8  10
+setSprite  8  $78 scroolXPos + 10    10+8
+setSprite  9  $79 scroolXPos + 10+8  10+8
+setSprite  10 $7A scroolXPos + 10+16 10+8
+setSprite  11 $88 scroolXPos + 10    10+16
+setSprite  12 $89 scroolXPos + 10+8  10+16
+setSprite  13 $8A scroolXPos + 10+16 10+16
+setSprite  14 $98 scroolXPos + 10    10+24
+setSprite  15 $99 scroolXPos + 10+8  10+24
+setSprite  16 $7B scroolXPos + 10+24  10+16
+setSprite  17 $8B scroolXPos + 10+24  10+16
+setSprite  18 $9A scroolXPos + 10+16  10+24
+
+CPU_PROF_END = 1
+; increment scroll position of sprite(x = x + 1)
+inc scroolXPos 
+goto main

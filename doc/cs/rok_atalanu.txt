@@ -1,0 +1,134 @@
+﻿***********
+Rok ATALANU
+***********
+
+V minulém čísle FLOPu jsem Vám představil nový programovací jazyk pro Atari Atalan.
+Po roce je čas si říci, kam se Atalan za tu dobu posunul.
+
+Obecně by se dalo říct, že Atalan za ten rok pěkně porostl a v mnoha ohledech
+dozrál. Doufám, že rok 2011 bude rokem Atalanu a vznikne v něm řada nových, zajímavých projektů.
+
+*************
+Zábavný jazyk
+*************
+
+Programování v Atalanu má být především zábavné. Snažím se, aby měl pěknou a logickou syntaxi
+a také zkouším některé experimentální vlastnosti, o kterých si myslím, že zvyšují čitelnost
+kódu tím, že je kratší.  
+
+Atalan má také otevřený, konfigurovatelný, backend. To znamená, že pravidla pro generování
+strojového kódu jsou součástí jazyka samotného a programátor je tak může doplňovat.
+
+Mělo by tak jít doplnit Atalan o podporu dalších optimalizací, legrácek jako je sweet16, nebo
+dokonce podporu pro úplně jiné procesory (nabízí se například Z80).  
+
+*************
+Pěkné syntaxe
+*************
+
+Podařilo se splnit některé cíle, týkající se pěkné syntaxe pro Atari specifické
+možnosti, které jsem sliboval loni. Jsou samozřejmě udělány obecně, ale první platforma, 
+která vždy iniciuje tyto možnosti je Atari. Ještě je kam jít, ale už nyní máme pěkné výsledky.
+
+Podívejte se například, jak snadno lze programovat PMG:
+
+::::::::::::::::::::::::::::::::::
+; Player/Missile Graphics
+; Demo program for ATALAN programming language
+;(c) 2011 Rudla Kudla
+
+use atari
+
+const smiley:array =
+	%00000000
+	%00111100
+	%01000010
+	%10000001
+	%10100101
+	%10000001
+	%10000001
+	%10000001
+	%10100101
+	%10011001
+	%10000001
+	%01000010
+	%00111100
+	%00000000	 
+
+;This is minimal initialization code for PMG
+pmg.initbase
+DMACTL = playfield + dl + players + missiles + hires_sprites
+GRACTL = players + missiles
+SPRIOR = 1
+
+;Set the player 0 properties and define it's shape 
+player(0).scolor = medium'green
+player(0).x = 100
+player(0).bitmap(50) = smiley
+::::::::::::::::::::::::::::::::::
+
+Lze také psát rutiny pro DLI, VBI, nastavovat fonty a řadu jiných věcí.
+ 
+*************
+Efektivní kód
+*************
+
+Kompiler Atalanu implementuje řadu optimalizací a generuje tak dosti efektivní kód.
+Na optimalizaci je kladen obzvláštní důraz, takže ještě rozhodně nebylo řečeno poslední slovo...  
+ 
+Umí například předávat parametry do procedur v registrech a také v nich vracet hodnoty.
+Je-li procedure použita jen jednou, je automaticky vložena přímo na místo svého volání.
+
+Zájemci se mohou podívat na vygenerované kódy v sekci Examples na stránkách Atalanu.
+Některé věci už podle mne vypadají velice slušně.
+
+Myslím, že mohu vcelku bezpečně tvrdit, že Atalan generuje nejlepší kód ze všech
+dostupných kompilerů vyšších programovacích jazyků pro Atari.
+(Na každý konkrétní příklad o neplatnosti tohoto tvrzení slibuju zareogovat tak, že
+doplním patřičnou optimalizaci do Atalanu tak, aby platilo.)
+
+********
+Projekty
+********
+
+V Atalanu byly v loňském roce vyvinuty tři hry. Ačkoliv nejsou příliš složité, ukazují,
+že se to již dá. Ačkoliv byly vyvinuty v poměrně dost ranném stádiu vývoje jazyka s
+řadou omezení, dle slov autorů se jednalo o velmi rychlý a příjemný vývoj. 
+Zatím se jedná výhradně o práce aktivních polských kolegů, ale
+já doufám, že Češi se nedají zahanbit a letos jim to natřou :-)
+
+  
+**************
+Jiné platformy
+**************
+
+Snažím se také o rozšíření Atalanu na další platformy. Zatím spolupracuje kolega 
+z Německa na platformě NES v rámci projektu http://playpower.org.
+Nicméně základní podpora pro kompilování aplikací je již připravena pro C64, Oric Atmos,
+Atari 2600 a NES.
+
+Zvláštní platformou je con6502. Ta umožňuje spouštět kód 6502 na PC s výstupem do konzoly.
+Používána je především pro tvorbu testů kompileru, což by mělo vést k větší robustnosti kompileru.
+
+********
+Debugger
+********
+
+Podařilo se mi implementovat pokusně do emulátoru Altirra podporu pro symbolické
+debugování programů v Atalanu. Bohužel, autor Altirry není příliš komunikativní
+a nechce přijímat cizí kód, ale vyprovokovalo ho to alespoň k tomu, že začal na podobné
+podpoře sám pracoval.
+
+Uvidíme, jak to dopadne....
+
+*****
+Závěr
+*****
+
+Jakkoliv je potřeba na Atalanu stále pracovat a dále ho rozvíjet, domnívám se,
+že nazrává čas začít ho více používat.
+Každý, kdo má zájem v Atalanu něco vyvíjet je vítán a pokud mne kontaktuje,
+poskytnu mu veškerou možnou podporu (podotýkám ale, že Atalan vás nezbaví nutnosti
+umět programovat nebo znát harware Atari).
+
+                           

@@ -1,0 +1,239 @@
+﻿****
+News
+****
+===========
+31-Oct-2012
+===========
+
+- NEW: Updated web page a little
+- NEW: Prelimitary support for Z80 CPU and ZX Spectrum platform
+- NEW: New conZ80 tool and platform support
+
+===========
+19-Mar-2011
+===========
+
+- NEW: 6502 Simulator (sim6502) platform added
+
+===========
+18-Mar-2011
+===========
+
+- NEW: default procedure and macro arguments 
+- NEW: tail call optimization
+- NEW: platform correctly parsed (there is no default Atari platform)
+- NEW: Automated tests
+- NEW: Padded arrays
+- NEW: Strings may contain expressions, not only variable names
+- NEW: Array assignments now handled at code generation level (making them subject to rule definitions)
+- NEW: autoexp.dat for Visual Studio 2010 (easier debugging of Atalan)
+- FIX: Error in values optimizer preventing some optimizations
+- FIX: Local variables in macros
+
+===========
+19-Feb-2011
+===========
+
+- NEW: Support for non-zero based arrays
+- NEW: improved support for adr
+- OPT: Add instruction merging
+- OPT: Null jump elimination
+- DOC: added some basic info on adr
+- NES: Support for new procedure calls 
+
+===========
+6-Feb-2011
+===========
+
+- DOC: howto   
+- NEW: con6502 platform
+
+===========
+30-Jan-2011
+===========
+
+- NEW: Basic support for C64 platform
+- OPT: Procedure argument in registers
+- NEW: Support separate procedure definition & declaration
+- NEW: -o option
+- NEW: 'in sequence' variables
+- NEW: @var in procedure header declaration marks variables used by the procedure
+- NEW: Report error when assigning a value to const, type, or in register
+- NEW: Report error on duplicit declaration
+- NEW: Call procedures and macros with scoped name (pmg.init)
+
+
+==========
+3-Jan-2011
+==========
+
+- NEW: Scope type
+- NEW: Array of array (massive rewriting of rules matching)
+- NEW: Slice addresses
+- Atari: PMG support, modified Stars.atl to use new PMG, new PMG.atl example
+
+==========
+4-Dec-2010
+==========
+
+- NEW: Support for bool in conditions (built in bool type, custom definable bool types)
+
+==========
+3-Dec-2010
+==========
+
+- NEW: -P option may be used to define target platform 
+- NEW: Compiler command is configured in processor file using rule
+- NEW: atari.asm moved to m6502.asm (it will be shared by multiple platforms)
+- NEW: Preliminary support for Oric Atmos platform
+- OPT: when comparing variable that has only two possible value and one of them is 0, always compare to zero
+
+==========
+30-Nov-2010
+==========
+
+- NEW: bitand, bitor, bitxor, bitnot operators
+- NEW: Signed integers assignment, add, sub, print
+- NEW: Initializing array or slice of array with constant
+- NEW: Assigning array to position at array (p(3) = x)
+- NEW: print & format is now implemented as macro, not instruction
+- OPT: Check phase (optimize values before translation)
+- OPT: Reuse variables in independent functions 
+- OPT: Variable merge (let a,5  let x,a  dead a => let x,5)
+- OPT: Replace printing of constant values by printing of strings
+- OPT: Skip jumps ( bne _l1  jmp _l2  _l2@ => beq _l2)
+- OPT: Jump foldng (goto L1  L1@ goto L2@ => goto L2)
+- OPT: Dead code elimination
+ 
+==========
+3-Oct-2010
+==========
+
+- OPT: Value optimization can elimitate some variable stores replacing them by more complex addressing modes 
+- NEW: Support NOT
+- NEW: RETURN allows returning from procedure including return values specifications
+- Atari: all keyboard scan codes
+- FIX: AND,OR in UNTIL
+- FIX: Error when printing apostrophe
+- FIX: Support initialized arrays at specified address
+
+===========
+28-Sep-2010
+===========
+
+- improved common subexpression optimisation
+- detection and reporting of interprocedural goto and goto to undefined label
+- square root (SQRT)
+
+===========
+15-Sep-2010
+===========
+
+- FOR now supports STEP
+- FILE may be used as array reference (set'font file "baloon.fnt")
+- variable A may be declared as alias of variable B usign A@B syntax (very usefull for system procedures arguments)
+- data-flow analysis in live value analysis
+- commutative instructions in backend are translated using switched order if necesary
+
+===========
+6-Sep-2010
+===========
+
+- Raster Music Tracker module
+- unused procedure detection
+
+===========
+3-Sep-2010
+===========
+
+- module system (Use keyword)
+- very basic version of structures
+- many bugs fixed
+- projects page
+- Little Fifteen game by Jakub Husak included (3 games developed in Atalan now!)
+
+===========
+24-Aug-2010
+===========
+
+- 16 bit multiplication
+- inserting file/line references to output
+- support for colorized output
+- let the assembler generate .lst file too
+
+===========
+23-Aug-2010
+===========
+
+- rewritten lexer (fixes some parsing errors)
+
+===========
+21-Aug-2010
+===========
+
+- var.min, var.max built-in associated variables
+- relational operators chains (10 < x < 30)
+
+===========
+16-Aug-2010
+===========
+
+- first version of type inferencing
+- improved error reporting (displays text of line with error)
+- comments with lines generated into .asm output
+- static array bounds checking
+- compiler can detect and report as error types not implemented by backend 
+- unused labels are no longer generated into .asm source code
+- improved block parsing 
+- updated to Visual Studio 10
+- fix: logical operators
+- fix: exit label after loop was not skipped by optimizer when spilling at the end of loop
+
+===========
+07-Aug-2010
+===========
+
+- for loops now support variable ranges (for i:s-10..s+10 etc.)
+- support for enums in array constants (also introduced type matching)
+- support for byte multiplication and division
+- new modulus operator MOD
+- fixed problem with UNIX style line separators
+- miscelaneous other fixes
+- doc: reference now has index 
+- doc: new loop example demonstrates differend kinds of loops
+
+===========
+05-Aug-2010
+===========
+
+- support for interrupts (DLI and VBI)
+- assigning addresses to variables
+- string may be assigned to array element (printing into string)
+
+===========
+02-Aug-2010
+===========
+
+- procedures can return values and be called from expressions
+- multiple return values from procedures
+- local scope in FOR, PROC
+- fixed identifier scope for arrays 
+- improved TETRIS example
+
+===========
+20-Jul-2010
+===========
+
+- 2-dimensional arrays
+- array initialization
+- n TIMES i initializator
+- TETRIS example
+- procedure arguments
+
+===========
+28-Apr-2010
+===========
+
+- FOR i WHERE cond loops
+- fixed procedure calls
+- GOTO variable
