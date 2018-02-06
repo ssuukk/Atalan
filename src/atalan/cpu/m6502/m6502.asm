@@ -6,7 +6,6 @@
 ;
 ;********************************************************
 
-
 ;Noname
 ;651-655         028B-028F
 ;
@@ -32,15 +31,14 @@
 ;
 _SYS_PRINT_SIGNED = 1
 
-;_putchr_proc_adr = $653  ;+$654 
-?argptr =   $32		;$33
-?varptr	=	$34
-?size	=	$15		;15		//$16 BUFADR
-		.IF _SYS_PRINT_SIGNED = 1 
-?sign = $16
+argptr  =       $32
+varptr	=	$34
+size	=	$15		;15		//$16 BUFADR
+		.IFDEF _SYS_PRINT_SIGNED 
+sign = $16
 		.ENDIF
-?aux2	=	$38
-?aux	=	$39
+aux2	=	$38
+aux	=	$39
 
 ;Following assigns are defined by mc6502.atl
 
@@ -77,45 +75,45 @@ _TL1 = $70	;four byte register ($70-$73) defined under name _TEMPL1 in mc6502.at
 ; 163     three byte
 ; 164     four byte
 
-_std_print_adr .proc
+.proc _std_print_adr
 
 		lda #<_adr_putchr
 		ldx #>_adr_putchr
 		clc
 		bcc system__print
-		.endp
-		
-system__print_out .proc
+.endproc
+
+.proc system__print_out
 		lda #<_out_putchr
 		ldx #>_out_putchr
 		clc											;TODO: No Jump, if we are directly before the _std_print
 		bcc system__print
-		.endp
+.endproc
 
- .IF .NOT .DEF _EOL_CHAR
-		_EOL_CHAR equ 0
+ .IFNDEF _EOL_CHAR
+		_EOL_CHAR = 0
  .ENDIF
 
-system__print .proc
+.proc system__print 
 		sta system__putchr_proc_adr 
 		stx system__putchr_proc_adr+1
 		
 		;... continue to _std_print
-;.endp
+.endproc
 		
-;_std_print	.proc
+.proc _std_print	
 
 		;Get address of argument from stack
 		pla
-		sta ?argptr
+		sta argptr
 		pla
-		sta ?argptr+1
+		sta argptr+1
 		jsr _read_byte	;just skip next byte (that is part of return address)
 
 		;Read command from input				
-command
+command:
 		jsr _read_byte
-		sta ?size
+		sta size
 		tay				  ; to set the flags  (TODO: Use asl?)
 		beq done		;command 0 means end of sequence
 		bpl str			;1..127 constant string
@@ -123,7 +121,7 @@ command
 		;Write n-byte integer variable
 
 		and #$7f		; zero top bit (it's always 1)
-		sta ?size
+		sta size
 		beq eol			;size 0 means end of line (0 byte integer would be nonsense)
 
     ;Read address of the variable
@@ -131,107 +129,107 @@ command
 		jsr _read_adr
 
 		;Is this array printing instruction?
-		bit ?size
+		bit size
 		bvc number
 		
 		;Read the size and get address of variable
 		ldy #0
-		lda (?varptr),y
-		sta ?size
+		lda (varptr),y
+		sta size
 		
 		jsr _read_adr		; this is adress of pointer variable that stores the address		
 		ldy #0
-		lda (?varptr),y
+		lda (varptr),y
 		tax
 		iny
-		lda (?varptr),y
-		stx ?varptr
-		sta ?varptr+1
+		lda (varptr),y
+		stx varptr
+		sta varptr+1
 								
 		;Print the specified number of bytes
-buf
-buf_char
+buf:
+buf_char:
 		ldy #0
-		lda (?varptr),y
+		lda (varptr),y
 		jsr _std_putchr
-		inc ?varptr
+		inc varptr
 		bne _skip_buf
-		inc ?varptr+1
-_skip_buf
-		dec ?size
+		inc varptr+1
+_skip_buf:
+		dec size
 		bne buf_char
 		beq	command
 					
-number
-		.IF _SYS_PRINT_SIGNED = 1 
+number:
+		.IFDEF _SYS_PRINT_SIGNED 
 		;signed number has bit 5 set
 		lda #0
-		sta ?sign
+		sta sign
 		
-		lda ?size
+		lda size
     and #32		;%00100000
     beq unsigned
 
-		lda ?size	;size uses only 4 bits
+		lda size	;size uses only 4 bits
 		and #31		;%00011111
-		sta ?size
+		sta size
     
     tay				;test, whether the integer is negative (i.e. top byte is negative)
     dey
-    lda (?varptr),y
+    lda (varptr),y
     bpl unsigned
 		 
-    dec ?sign				;sign = $ff  (-1)
+    dec sign				;sign = $ff  (-1)
 		
 		lda #'-'
 		jsr _std_putchr
 		
-unsigned
+unsigned:
 		.ENDIF
 		    
 		jsr _std_bin_to_bcd
 		jsr _std_print_hex
 		clc
 		bcc command		;jmp command
-eol
+eol:
 		lda #_EOL_CHAR	
 		jsr _std_putchr
 		clc
 		bcc command		;jmp command
 		;Write constant string (size is 1..127, already stored)
 					
-str
+str:
 		jsr _read_byte
 		jsr _std_putchr
-		dec ?size
+		dec size
 		bne str
 		beq	command
 						
-done		
-		jmp (?argptr)	
+done:		
+		jmp (argptr)	
 		rts
 
-_read_adr
+_read_adr:
 		jsr _read_byte
-		sta ?varptr		
+		sta varptr		
 		jsr _read_byte
-		sta ?varptr+1
+		sta varptr+1
 		rts
 						
-_read_byte
+_read_byte:
 		ldy #0
-		lda (?argptr),y
-		inc ?argptr
+		lda (argptr),y
+		inc argptr
 		bne skip
-		inc ?argptr+1
-skip
+		inc argptr+1
+skip:
 		rts
-.endp
+.endproc
 
-_std_putchr .proc
+.proc _std_putchr 
 		jmp (system__putchr_proc_adr)
 		rts
-.endp
+.endproc
 
 
 .proc _std_print_hex
@@ -244,14 +242,14 @@ _std_putchr .proc
 ;	?aux
 ;	?aux2
 	
-		lda ?size
-		sta ?aux
+		lda size
+		sta aux
 		lda #0
-		sta ?aux2		; number of non-zero digits on output
+		sta aux2		; number of non-zero digits on output
 		beq _loop
-_outbyte
-		ldy ?aux		
-		lda (?varptr),y
+_outbyte:
+		ldy aux		
+		lda (varptr),y
 		pha
 		lsr
 		lsr
@@ -262,37 +260,38 @@ _outbyte
 		pla
 		and #$0f
 		jsr _write_digit
-_loop	
-		dec ?aux
+_loop:
+		dec aux
 		bpl _outbyte
 		
 		;If no character has been written, write at least one 0		
-		lda ?aux2
+		lda aux2
 		bne _no_empty
 		lda #48
 		jsr _std_putchr
-_no_empty
+_no_empty:
  
 		rts
 	
-_write_digit
+_write_digit:
 ;In: a 4 bit digit
 
 		tax
 		bne _non_zero
-		lda ?aux2
+		lda aux2
 		beq _done		;this is zero and there has been no char before - no output
-_non_zero
+_non_zero:
 		lda hex,x
 		jsr _std_putchr
-		inc ?aux2
-_done
+		inc aux2
+_done:
 		rts
 
-hex     dta c"0123456789ABCDEF"
+hex:    .byt "0123456789ABCDEF"
 
-.endp
+.endproc
 
+;===================================================================
 .proc _std_bin_to_bcd
 ;Convert binary number to BCD. 
 ;Arbitrary size (up to 127 bytes) are supported.
@@ -310,14 +309,14 @@ hex     dta c"0123456789ABCDEF"
 ;	?aux2
 
 		;Compute size of resulting number 
-		ldy ?size
-		sty ?aux		; used to count later
+		ldy size
+		sty aux		; used to count later
 		iny				;add space to result
-		sty ?size
+		sty size
 		
 		;Zero the destination buffer
 		lda #0
-zero	sta system__buf-1,y
+zero:	sta system__buf-1,y
 		dey
 		bne zero
 		
@@ -325,21 +324,21 @@ zero	sta system__buf-1,y
 		sed
 		
 		;?aux = varptr(?aux)
-bytes
-		dec ?aux
-		ldy ?aux
-		lda (?varptr),y	
-		.IF _SYS_PRINT_SIGNED = 1 
-		eor ?sign
+bytes:
+		dec aux
+		ldy aux
+		lda (varptr),y	
+		.IFDEF _SYS_PRINT_SIGNED 
+		eor sign
 		.ENDIF	
-		sta ?aux2
+		sta aux2
 		sec				;set top bit to 1
 		bcs loop		
 
-shift_byte			
+shift_byte:			
 		ldx #0
-		ldy ?size
-bcd_mul2
+		ldy size
+bcd_mul2:
 		lda system__buf,x
 		adc	system__buf,x			;buf2(x) = buf2(x) * 2 + carry
 		sta system__buf,x
@@ -348,19 +347,19 @@ bcd_mul2
 		bne bcd_mul2
 			
 		clc
-loop	rol ?aux2		;divide by two, if result is 0, end
+loop:	rol aux2		;divide by two, if result is 0, end
 		bne shift_byte		
 		
-		lda ?aux
+		lda aux
 		bne bytes
 	
-		.IF _SYS_PRINT_SIGNED = 1 
+		.IFDEF _SYS_PRINT_SIGNED 
 		;If this is negative number, add 1
 		;In case sign is $ff, asl will set the C to 1, otherwise to 0	
-		lda ?sign
+		lda sign
 		asl
 		ldx #0
-carry1
+carry1:
 		lda system__buf,x
 		adc #0
 		sta system__buf,x
@@ -371,34 +370,31 @@ carry1
 		cld		
 		
 		lda #<system__buf
-		sta ?varptr	
+		sta varptr	
 		lda #>system__buf
-		sta ?varptr+1	
+		sta varptr+1	
 		rts
 
-.endp
+.endproc
+;==============================================================
+;   Neg value in A
 
-/*
-   Neg value in A
-*/
-
-_sys_neg   .proc
+.proc _sys_neg   
 		clc
 		eor #$FF
 		adc #1
 		rts	
-.endp
+.endproc
 
-/*
-  Multiply two signed 8-bit integers
 
-	Paramerters:
-	  a  First multiplicant (signed)
-	  x  Second multiplicand (signed)
-*/
+;  Multiply two signed 8-bit integers
 
-_sys_mulss8   .proc
+;	Paramerters:
+;	  a  First multiplicant (signed)
+;	  x  Second multiplicand (signed)
 
+
+_sys_mulss8:
 	cpx #0
 	bpl _sys_mulsu8
 	
@@ -409,23 +405,21 @@ _sys_mulss8   .proc
 	pla	
 	jsr _sys_mulsu8
 	jmp	_sys_neg16
-.endp
 
-/*
-  Multiply signed 8-bit integer with unsigned 8-bit integer
 
-	Paramerters:
-	  a  First multiplicant (signed)
-	  x  Second multiplicand (unsigned)
-*/
+;  Multiply signed 8-bit integer with unsigned 8-bit integer
 
-_sys_mulsu8   .proc
+;	Paramerters:
+;	  a  First multiplicant (signed)
+;	  x  Second multiplicand (unsigned)
+
+
+_sys_mulsu8:
    cmp  #0
    bpl _sys_mul8
    jsr _sys_neg
    jsr _sys_mul8
-	 		
-.DEF :_sys_neg16
+_sys_neg16:
    ;  neg the result of multiplication   
    lda #0					;TODO: Maybe we may return the result in X,A ?
    sec
@@ -435,23 +429,23 @@ _sys_mulsu8   .proc
    sbc _TW2+1
    sta _TW2+1
    rts
-   .endp
    
-/*
-  Mul8 - 8-bit multiplication routine
-  
-  Original source:
-  Book Atari Roots (Chapter Ten - Assembly Language Math)
-  Hyperlink: http://www.atariarchives.org/roots/chapter_10.php
-  
-  Parameters:
-	  a First multiplicant
-	  x Second multiplicant
-  Result: 
-		TEMPW2,TEMPW2+1	high byte of the result
-*/
+   
 
-_sys_mul8  .proc
+;  Mul8 - 8-bit multiplication routine
+  
+;  Original source:
+;  Book Atari Roots (Chapter Ten - Assembly Language Math)
+;  Hyperlink: http://www.atariarchives.org/roots/chapter_10.php
+  
+;  Parameters:
+;	  a First multiplicant
+;	  x Second multiplicant
+;  Result: 
+;		TEMPW2,TEMPW2+1	high byte of the result
+
+
+.proc _sys_mul8  
 
 MUL1 = _TW1
 MUL2 = _TW1+1
@@ -464,14 +458,14 @@ RES  = _TW2		;_TW2+1
 		sta RES
 		
 		ldx #8  
-loop
+loop:
 		lsr MUL1		;MUL1 = MUL1 / 2
 		bcc noadd
 		
 		clc					;RES = RES + (MUL2 * $ff)
 		adc MUL2	  
-noadd 
-		ror @				;RES = RES / 2		(Carry is 0, when there was no add)
+noadd: 
+		ror a				;RES = RES / 2		(Carry is 0, when there was no add)
 		ror RES
 
 		dex
@@ -480,19 +474,19 @@ noadd
 		sta RES+1
 		rts
 
-		.endp
+		.endproc
 
-/*
-  Mul16 - 16-bit multiplication routine
+
+;  Mul16 - 16-bit multiplication routine
     
-  Parameters:
-	  _TW1 First multiplicant (we use only two bytes now)
-	  _TW2 Second multiplicant
-  Result: 
-		_TL1 Result
-*/
+;  Parameters:
+;	  _TW1 First multiplicant (we use only two bytes now)
+;	  _TW2 Second multiplicant
+;  Result: 
+;		_TL1 Result
 
-_sys_mul16  .proc
+
+.proc _sys_mul16  
 
 MUL1 = _TW1
 MUL2 = _TW2
@@ -505,7 +499,7 @@ RES  = _TL1
 		sta RES+3
 		
 		ldx #16  
-loop
+loop:
 		lsr MUL1+1		;MUL1 = MUL1 / 2
 		ror MUL1
 		bcc noadd
@@ -517,7 +511,7 @@ loop
 		lda RES+3
 		adc MUL2+1
 		sta RES+3
-noadd
+noadd:
 		ror RES+3				;RES = RES / 2		(Carry is 0, when there was no add)
 		ror RES+2
 		ror RES+1
@@ -528,29 +522,29 @@ noadd
 		
 		rts
 
-		.endp
+		.endproc
  
-/*
-  Div8 - 8-bit division routine
- 
-  Original source:
-  Book Atari Roots (Chapter Ten - Assembly Language Math)
-  Hyperlink: http://www.atariarchives.org/roots/chapter_10.php
- 
-  Parameters:
-  _TEMPW1		16-bit dividend
-  a					 p1_math:  8-bit divisor
-  x          number of bits of an divisir (8 max)
- 
-  Result:
-  x STORE1: 8-bit quotient
-  a STORE2: 8-bit remainder
-*/
 
-_sys_div8  .proc
+;  Div8 - 8-bit division routine
+ 
+;  Original source:
+;  Book Atari Roots (Chapter Ten - Assembly Language Math)
+;  Hyperlink: http://www.atariarchives.org/roots/chapter_10.php
+ 
+;  Parameters:
+;  _TEMPW1		16-bit dividend
+;  a					 p1_math:  8-bit divisor
+;  x          number of bits of an divisir (8 max)
+ 
+;  Result:
+;  x STORE1: 8-bit quotient
+;  a STORE2: 8-bit remainder
+
+
+.proc _sys_div8  
   ldx #08  ; For an 8-bit divisor
 	
-_sys_div
+_sys_div:
 
 divisor  = _TW2
 quotient = _TW2+1
@@ -561,53 +555,53 @@ quotient = _TW2+1
   lda _TW1+1
   sec 
   sbc divisor
-dloop 
+dloop: 
   php  					; The loop that divides 
   rol quotient
   asl _TW1
-  rol @
+  rol a
   plp
   bcc addit
   sbc divisor
   jmp next
-addit 
+addit: 
   adc divisor
-next  
+next:  
   dex
   bne dloop
   bcs fini
   adc divisor
   clc
-fini
+fini:
 	tax            ; x = remainder
   lda quotient   ; a = quotient
   rol
   rts
  
-  .endp
+  .endproc
 
-/*
 
-  Square Root
 
-  Calculates the 8 bit root and 9 bit remainder of a 16 bit unsigned integer in
-  Numberl/Numberh. The result is always in the range 0 to 255 and is held in
-  Root, the remainder is in the range 0 to 511 and is held in Reml/Remh
+;  Square Root
 
-  partial results are held in templ/temph
+;  Calculates the 8 bit root and 9 bit remainder of a 16 bit unsigned integer in
+;  Numberl/Numberh. The result is always in the range 0 to 255 and is held in
+;  Root, the remainder is in the range 0 to 511 and is held in Reml/Remh
 
-  Destroys A, X registers.
+;  partial results are held in templ/temph
 
-	Arguments:
+;  Destroys A, X registers.
+
+;	Arguments:
 	
-	_TEMPW1  16-bit number to compute root of
+;	_TEMPW1  16-bit number to compute root of
 	
-	<a        Square root
-	<_TEMPW2  Remainder of square
+;	<a        Square root
+;	<_TEMPW2  Remainder of square
 	
-*/
 
-_sys_sqrt16 .proc
+
+.proc _sys_sqrt16 
 
 Numberl		= _TW1		; number to find square root of low byte
 Numberh		= _TW1+1	; number to find square root of high byte
@@ -622,7 +616,7 @@ Root		  = _TL1+2	; square root
 	STA	Remh		; clear remainder high byte
 	STA	Root		; clear Root
 	LDX	#$08		; 8 pairs of bits to do
-Loop
+Loop:
 	ASL	Root		; Root = Root * 2
 
 	ASL	Numberl		; shift highest bit of number ..
@@ -656,7 +650,7 @@ Loop
 
 				; else remainder>=partial so subtract then
 				; and add 1 to root. carry is always set here
-Subtr
+Subtr:
 	LDA	Reml		; get remainder low byte
 	SBC	templ		; subtract partial low byte
 	STA	Reml		; save remainder low byte
@@ -665,11 +659,11 @@ Subtr
 	STA	Remh		; save remainder high byte
 
 	INC	Root		; increment Root
-Next
+Next:
 	DEX			; decrement bit pair count
 	BNE	Loop		; loop if not all done
 
 	lda Root
 	
 	RTS
-.endp
+.endproc

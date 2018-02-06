@@ -1,6 +1,7 @@
 ﻿;ATALAN definitions for 6502 CPU
 
 type
+   char:0..255
    byte:0..255
    card:0..65535
    int:-32768..32767
@@ -359,6 +360,15 @@ rule let_adr %D:adr, %A:arr_of_arr(%B:byte) = instr
 	sta %D$0
 	lda %A.index_hi$y
 	sta %D$1
+
+; qus
+rule let_adr %A:byte1arr(%B:byte),%C:byte = instr
+	nop
+	lda %B
+	sta 69
+	nop
+	; nieznana instrukcja let_adr array,d
+
 	 
 ;======= array(0..255) of array(0..127) of byte2
 
@@ -415,7 +425,8 @@ rule let %D:byte2, %A:arr_of_arr2(%B:0..255)(%C:0..127)  = instr
 
 rule alloc %A:array(%B:byte,%C:byte) of byte1   = "   .ds %C.count*%B.count"
 
-rule arrindex %A:array(%B:byte,%C:byte) of byte1    = "%A_lo:  :%C.count dta l(%A + #*%B.count)" "%A_hi:  :%C.count dta h(%A + #*%B.count)"
+;rule arrindex %A:array(%B:byte,%C:byte) of byte1    = "%A_lo:  :%C.count dta l(%A + #*%B.count)" "%A_hi:  :%C.count dta h(%A + #*%B.count)"
+rule arrindex %A:array(%B:byte,%C:byte) of byte1    =  "%A_lo:" "   .repeat %C.count, multiplier" "   .byte <(%A+multiplier*%B.count)" "   .endrepeat" "%A_hi:" "   .repeat %C.count, multiplier" "   .byte >(%A+multiplier*%B.count)" "   .endrepeat"
 
 rule let %A:_byte1arr2D(%B:byte, %C:byte), %D:byte = instr
 	ldy %C
@@ -2011,15 +2022,30 @@ rule let c, 1  #2 = "   sec"
 
 ;FLAG-specific conditional jumps
 
-rule ifeq %A, z, 0  #3 = "   jne %A"
-rule ifeq %A, z, 1  #3 = "   jeq %A"
-rule ifne %A, z, 0  #3 = "   jeq %A"
-rule ifne %A, z, 1  #3 = "   jne %A"
+;rule ifeq %A, %B$7, 0 = "   bit %B; dupa 1 bit 7 = 0" "   bmi *+5" "   jmp %A"
+;rule ifne %A, %B$7, 0 = "   bit %B; dupa 2 bit 7 !=0" "   bpl *+5" "   jmp %A"
+;rule ifeq %A, %B$7, 1 = "   bit %B; dupa 3 bit 7 = 1" "   bpl *+5" "   jmp %A"
+;rule ifne %A, %B$7, 1 = "   bit %B; dupa 4 bit 7 !-1" "   bmi *+5" "   jmp %A"
 
-rule ifeq %A, c, 0  #3 = "   jcc %A"
-rule ifeq %A, c, 1  #3 = "   jcs %A"
-rule ifne %A, c, 0  #3 = "   jcs %A"
-rule ifne %A, c, 1  #3 = "   jcc %A"
+rule ifeq %A, %B$7, 0 = "   bit %B; dupa 1 bit 7 = 0" "   bpl %A"
+rule ifne %A, %B$7, 0 = "   bit %B; dupa 2 bit 7 !=0" "   bmi %A"
+rule ifeq %A, %B$7, 1 = "   bit %B; dupa 3 bit 7 = 1" "   bmi %A"
+rule ifne %A, %B$7, 1 = "   bit %B; dupa 4 bit 7 !-1" "   bpl %A"
+
+;rule ifeq %A, z, 0  #3 = "   beq *+4" "   jmp %A" ; eq z=0
+;rule ifeq %A, z, 1  #3 = "   bne *+4" "   jmp %A" ; ne z=1
+;rule ifne %A, z, 0  #3 = "   bne *+4" "   jmp %A"
+;rule ifne %A, z, 1  #3 = "   beq *+4" "   jmp %A"
+
+rule ifeq %A, z, 0  #3 = "   bne %A" ; eq z=0
+rule ifeq %A, z, 1  #3 = "   beq %A" ; ne z=1
+rule ifne %A, z, 0  #3 = "   beq %A"
+rule ifne %A, z, 1  #3 = "   bne %A"
+
+rule ifeq %A, c, 0  #3 = "   bcc *+4" "   jmp %A"
+rule ifeq %A, c, 1  #3 = "   bcs *+4" "   jmp %A"
+rule ifne %A, c, 0  #3 = "   bcs *+4" "   jmp %A"
+rule ifne %A, c, 1  #3 = "   bcc *+4" "   jmp %A"
 
 rule ifeq %A, v, 0  #3 = "   jvc %A"
 rule ifeq %A, v, 1  #3 = "   jvs %A"
@@ -2251,8 +2277,8 @@ rule goto %A     #3 = "   jmp %A"
 ;				result		variable to alloc
 ;				arg1			constant with address (empty, if the address is not specified)
 
-rule vardef %A,%B   = "%A equ %B"
-rule vardef %A,%B(%C..%D) = "%A equ %B+%C*%B.elemsize"
+rule vardef %A,%B   = "%A = %B"
+rule vardef %A,%B(%C..%D) = "%A = %B+%C*%B.elemsize"
 
 rule label %A   = "%A:"
 rule proc %A:proc     = "%A .proc"
@@ -2284,28 +2310,29 @@ std_format:macro d:adr = instr
 ;rule format    = instr
 ;	call _std_print_adr
 
-rule str_arg %A:string  = "   dta b(%A.size),%'A"
-rule var_arg %A:byte   = "   dta b(129),a(%A)"
-rule var_arg %A:card   = "   dta b(130),a(%A)"
-;rule var_arg ,%A:adr    = "   dta b(130),a(%A)"
-rule var_arg %A:long   = "   dta b(131),a(%A)"
-rule var_arg %A:adr, %B:0..255 = "   dta b(128+64+1), a(%B), a(%A)"
+;rule str_arg %A:string  = "   .BYT b(%A.size),%'A"
+rule str_arg %A:string = "    .byte %A.size,%["]%A["]" 
+rule var_arg %A:byte   = "   1 dta b(129),a(%A)"
+rule var_arg %A:card   = "   2 dta b(130),a(%A)"
+;rule var_arg ,%A:adr    = "   3 dta b(130),a(%A)"
+rule var_arg %A:long   = "   4 dta b(131),a(%A)"
+rule var_arg %A:adr, %B:0..255 = "   5 dta b(128+64+1), a(%B), a(%A)"
 
-rule var_arg %A:sbyte  = "   dta b(129+32), a(%A)"
-rule var_arg %A:int    = "   dta b(130+32), a(%A)"
+rule var_arg %A:sbyte  = "   6 dta b(129+32), a(%A)"
+rule var_arg %A:int    = "   7 dta b(130+32), a(%A)"
 
-rule data %A:string = "   dta %'A"
-rule data %A    = "   dta b(%A)"
+rule data %A:string = "    .byt %'A"
+rule data %A    = "   9 dta b(%A)"
 rule align %A    = "   .align %A"
 rule file %A     = "   ins '%A'"
-rule org  %A     = "   org %A"
-rule ptr %A$0  = "   dta b(<%A)"
-rule ptr %A$1  = "   dta b(>%A)"
-rule ptr %A    = "   dta a(%A)"
+rule org  %A     = "   .org %A"
+rule ptr %A$0  = "   10 dta b(<%A)"
+rule ptr %A$1  = "   11 dta b(>%A)"
+rule ptr %A    = "   12 dta a(%A)"
 rule debug  = "   brk"  "   dta b(0)"
-rule line      = ";### %0(%1) %2"
+rule line      = "; %2 (%0 @%1)"
 
-rule include %A = "   icl '%A'"
+rule include %A = "   .include ["]%A["]"
 
 rule src_end    = ";end"
 
@@ -2314,4 +2341,5 @@ rule src_end    = ";end"
 ; %B  extension of resulting binary as defined by platform
 ; %/  defines path to directory with currently parsed file
 
-rule compiler %A,%B = "["]%/mads["] ["]%A.asm["] -o:["]%A.%B["] -x -l:["]%A.lst["]"
+;rule compiler %A,%B = "["]%/ca65["] ["]%A.asm["] -o:["]%A.o["] -x -l:["]%A.lst["]"
+rule compiler %A,%B = "ca65 ["]%A.asm["] -t c64 -l ["]%A.lst["] -o["]%A.o["]" "ld65 -o["]%A.%B["] -C c64.cfg -vm -m ["]%A.map["] --dbgfile ["]%A.deb["]   ["]%A.o["]"

@@ -8,18 +8,127 @@ use m6502
 
 ;prologue is emitted at the beginning of the generated assmbler file.
 ;Here you can define header of output binary and the starting address of an application.
-rule prologue = "   opt f+ h-" "_CODE_START equ $801" "   org [a(_CODE_START)],_CODE_START" "   dta a($80c), a(10), b($9e), c'2061', b(0), a(0)"
+;                                                                        800 801 802 803 804 805
+;rule prologue = "   .segment ["]FS["]" "   .byt $00,$08" "   .segment ["]CODE["]" "_CODE_START:" "   .byt $00,$0b,$08,$40,$00,$9e,["]2062["],$00,$00,$00,$00"
+rule prologue = ".export __LOADADDR__,__EXEHDR__" "" ".segment ["]LOADADDR["]" "__LOADADDR__=$0801" "   .byt <__LOADADDR__,>__LOADADDR__" "" ".segment ["]EXEHDR["]" "__EXEHDR__:" "   .byt $0b,$08,$40,$00,$9e,["]2060["],$00,$00" "" ".segment ["]CODE["]"
 
 ;epilogue is emitted at the end of code. 
 rule epilogue = "   rts"
 
 ;code_end is instruction emitted after the end of code.
-rule code_end = "_CODE_END equ *-1"     
+rule code_end = "_CODE_END:"     
 rule line      = ";### %0(%1) %2"
 
 ;BIN_EXTENSION defines extension of the resulting binary file produced by compiler.
 BIN_EXTENSION: "prg"
 
+system.putchr_proc_adr@$c3:adr
+system.buf@$7e8:adr ; for bcd translation
+
+
 ;VARHEAP defines memory area that can be used by Atalan to allocate variables.
-type VARHEAP:128..255   
+;this area memory is used mainly by BASIC, so it is safe to use
+type VARHEAP:3..143
+
+Color: enum
+ black
+ white
+ red
+ cyan
+ purple
+ green
+ blue
+ yellow
+ orange
+ brown
+ lightred
+ garkgrey
+ grey
+ lightgreen
+ lightblue
+ lightgrey
+
+type Device:0..30
+const keyboardD = 0
+const datasetteD = 1
+const rs232D = 2
+const screenD = 3
+const printer1D = 4
+const printer2D = 5
+const plotter1D = 6
+const plotter2D = 7
+const floppy8D = 8
+const floppy9D = 9
+const floppy10D = 10
+const floppy11D = 11
+const floppy12D = 12
+ 
+type RowType:0..24
+type ColType:0..39
+type FileNameLen:0..15
+
+in out screenMemory@1024:array(ColType,RowType) of byte 
+in out keyboardBuffer@631:array(0..9) of byte
+in out keyboardBufferSize@198:byte
+
+in out borderColor @53280:byte
+in out backgroundColor @53281:byte
+
+in out secondaryFileAddress @$b9:byte
+
+in out fileStatus @$90:byte
+
+;********************************
+; KERNAL FUNCTIONS
+;********************************
+KScnKey@$ff9f:proc                 -> matrix@$cb shift@$28d petsci@keyboardBuffer @cpu.a @cpu.x @cpu.y
+KIecIn@$ffa5: proc                 -> b:byte@cpu.a
+KChrIn@$ffcf: proc                 -> b:byte@cpu.a                                @cpu.a @cpu.y
+KRdTim@$ffde: proc                 -> t1:byte@cpu.a t2:byte@cpu.x t3:byte@cpu.y   @cpu.a @cpu.x @cpu.y
+KStop@$ffe1:  proc                 -> pressed@cpu.z pressed2@cpu.c                @cpu.a @cpu.x
+KGetin@$ffe4: proc                 -> c:char@cpu.a                                @cpu.a
+KGetCursor:   proc                 -> x:ColType@cpu.x y:RowType@cpu.y             @cpu.c
+KReadSt@$ffb7:proc                 -> st@cpu.a                                    @cpu.a
+KLoad@$ffd5:  proc lv:byte@cpu.a startAddr@(CPU.x,CPU.y):adr     -> state@cpu.c error@cpu.a lastByte@(cpu.x,cpu.y):adr  @cpu.a @cpu.x @cpu.y
+; startAddr - zero page address of pointer
+KSave@$ffd8:  proc startAddr:byte@cpu.a endAddr@(CPU.x,CPU.y):adr-> state@cpu.c error@cpu.a                             @cpu.a @cpu.x @cpu.y
+;********************************
+; KERNAL PROCEDURES
+;********************************
+KScInit@$ff81:proc                                                @cpu.a @cpu.x @cpu.y
+KIOInit@$ff84:proc                                                @cpu.a @cpu.x
+KRAMTas@$ff87:proc                                                @cpu.a @cpu.x @cpu.y
+KLstnSA@$ff93:proc sa:byte@cpu.a                                  @cpu.a
+KTalkSA@$ff96:proc sa:byte@cpu.a                                  @cpu.a
+KIecOut@$ffa8:proc b:byte@cpu.a
+KUntalk@$ffab:proc                                                @cpu.a
+KUnlstn@$ffae:proc                                                @cpu.a
+KListen@$ffb1:proc dev:Device@cpu.a                               @cpu.a
+KTalk@$ffb4:  proc dev:Device@cpu.a                               @cpu.a
+KSetLFS@$ffba:proc ln:byte@cpu.a dev:Device@cpu.x sa:byte@cpu.y
+KSetNam@$ffbd:proc len:FileNameLen@cpu.a name@(CPU.x,CPU.y):adr
+KOpen@$ffc0:  proc                                                @cpu.a @cpu.x @cpu.y
+KClose@$ffc3: proc lfn:byte@cpu.a                                 @cpu.a @cpu.x @cpu.y
+KChkIn@$ffc6: proc lfn:byte@cpu.x                                 @cpu.a @cpu.x
+KChkOut@$ffc9:proc lfn:byte@cpu.x                                 @cpu.a @cpu.x
+KClrChn@$ffcc:proc                                                @cpu.a @cpu.x
+KChrOut@$ffd2:proc c:char@cpu.a
+KSetTim@$ffbd:proc t1:byte@cpu.a t2:byte@cpu.x t3:byte@cpu.y
+KClAll@$ffe7: proc                                                @cpu.a @cpu.x
+KSetCursor:   proc x:ColType@CPU.x y:RowType@CPU.y                @cpu.c
+
+disableIrq: proc
+enableIrq: proc
+disableTimerAIrq: proc
+enableRasterIrq: proc
+disableRasterIrq: proc
+screenMode24: proc
+screenMode25: proc
+ackRasterIrq: proc
+
+in out irqReg@$dc0d:byte
+in out irqVector@$314:adr
+in out vicScrCtrlReg1@$d011:byte
+in out vicRasterLine@$d012:byte
+in out vicCtrlReg@$d01a:byte
 
