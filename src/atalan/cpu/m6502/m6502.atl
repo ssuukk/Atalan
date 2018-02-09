@@ -36,7 +36,7 @@ rule alloc %A:int                                = "   .ds 2"
 CPU:scope =
 	a:0..255
 	x,y:0..255
-	c,z,v,n,d:0..1	
+	c,i,z,v,n,d:0..1	
 	ac@(a,c)
 	ca@(c,a)
 	azn@(a,z,n)
@@ -2013,12 +2013,14 @@ rule ifge %L,%B:int, %C:card   = instr
 ;(Previous compilation stages are responsible to prepare the
 ; code in such a way, that this is true). 
 
-
 rule nop #2 = "   nop" 
 
 ;CLC,SEC
 rule let c, 0  #2 = "   clc"
 rule let c, 1  #2 = "   sec"
+
+rule let i, 0  #2 = "   cli"
+rule let i, 1  #2 = "   sei"
 
 ;FLAG-specific conditional jumps
 
@@ -2031,6 +2033,41 @@ rule ifeq %A, %B$7, 0 = "   bit %B; dupa 1 bit 7 = 0" "   bpl %A"
 rule ifne %A, %B$7, 0 = "   bit %B; dupa 2 bit 7 !=0" "   bmi %A"
 rule ifeq %A, %B$7, 1 = "   bit %B; dupa 3 bit 7 = 1" "   bmi %A"
 rule ifne %A, %B$7, 1 = "   bit %B; dupa 4 bit 7 !-1" "   bpl %A"
+
+rule ifeq %A, %B$6, 0 = "   bit %B; dupa 1 bit 6 = 0" "   bvc %A"
+rule ifne %A, %B$6, 0 = "   bit %B; dupa 2 bit 6 !=0" "   bvs %A"
+rule ifeq %A, %B$6, 1 = "   bit %B; dupa 3 bit 6 = 1" "   bvs %A"
+rule ifne %A, %B$6, 1 = "   bit %B; dupa 4 bit 6 !-1" "   bvc %A"
+
+rule ifeq %A, %B$5, 0 = "   lda #32" "    and %B" "   beq %A"
+rule ifne %A, %B$5, 0 = "   lda #32" "    and %B" "   bne %A"
+rule ifeq %A, %B$5, 1 = "   lda #32" "    and %B" "   bne %A"
+rule ifne %A, %B$5, 1 = "   lda #32" "    and %B" "   beq %A"
+
+rule ifeq %A, %B$4, 0 = "   lda #16" "    and %B" "   beq %A"
+rule ifne %A, %B$4, 0 = "   lda #16" "    and %B" "   bne %A"
+rule ifeq %A, %B$4, 1 = "   lda #16" "    and %B" "   bne %A"
+rule ifne %A, %B$4, 1 = "   lda #16" "    and %B" "   beq %A"
+
+rule ifeq %A, %B$3, 0 = "   lda #8" "    and %B" "   beq %A"
+rule ifne %A, %B$3, 0 = "   lda #8" "    and %B" "   bne %A"
+rule ifeq %A, %B$3, 1 = "   lda #8" "    and %B" "   bne %A"
+rule ifne %A, %B$3, 1 = "   lda #8" "    and %B" "   beq %A"
+
+rule ifeq %A, %B$2, 0 = "   lda #4" "    and %B" "   beq %A"
+rule ifne %A, %B$2, 0 = "   lda #4" "    and %B" "   bne %A"
+rule ifeq %A, %B$2, 1 = "   lda #4" "    and %B" "   bne %A"
+rule ifne %A, %B$2, 1 = "   lda #4" "    and %B" "   beq %A"
+
+rule ifeq %A, %B$1, 0 = "   lda #2" "    and %B" "   beq %A"
+rule ifne %A, %B$1, 0 = "   lda #2" "    and %B" "   bne %A"
+rule ifeq %A, %B$1, 1 = "   lda #2" "    and %B" "   bne %A"
+rule ifne %A, %B$1, 1 = "   lda #2" "    and %B" "   beq %A"
+
+rule ifeq %A, %B$0, 0 = "   lda #1" "    and %B" "   beq %A"
+rule ifne %A, %B$0, 0 = "   lda #1" "    and %B" "   bne %A"
+rule ifeq %A, %B$0, 1 = "   lda #1" "    and %B" "   bne %A"
+rule ifne %A, %B$0, 1 = "   lda #1" "    and %B" "   beq %A"
 
 ;rule ifeq %A, z, 0  #3 = "   beq *+4" "   jmp %A" ; eq z=0
 ;rule ifeq %A, z, 1  #3 = "   bne *+4" "   jmp %A" ; ne z=1
@@ -2106,6 +2143,27 @@ rule let x,a @zn   #2  = "   tax"
 rule let y,a @zn   #2  = "   tay"
 rule let a,x @zn   #2  = "   txa"
 rule let a,y @zn   #2  = "   tya"
+
+; bit operations qus
+
+rule let %A$0, 1 @z #4 = "    lda #1" "    ora %A"
+rule let %A$1, 1 @z #4 = "    lda #2" "    ora %A"
+rule let %A$2, 1 @z #4 = "    lda #4" "    ora %A"
+rule let %A$3, 1 @z #4 = "    lda #8" "    ora %A"
+rule let %A$4, 1 @z #4 = "    lda #16" "    ora %A"
+rule let %A$5, 1 @z #4 = "    lda #32" "    ora %A"
+rule let %A$6, 1 @z #4 = "    lda #64" "    ora %A"
+rule let %A$8, 1 @z #4 = "    lda #128" "    ora %A"
+
+rule let %A$0, 0 @z #4 = "    lda #254" "    and %A"
+rule let %A$1, 0 @z #4 = "    lda #253" "    and %A"
+rule let %A$2, 0 @z #4 = "    lda #251" "    and %A"
+rule let %A$3, 0 @z #4 = "    lda #247" "    and %A"
+rule let %A$4, 0 @z #4 = "    lda #239" "    and %A"
+rule let %A$5, 0 @z #4 = "    lda #223" "    and %A"
+rule let %A$6, 0 @z #4 = "    lda #191" "    and %A"
+rule let %A$8, 0 @z #4 = "    lda #127" "    and %A"
+
 
 ;LDX++
 
@@ -2343,3 +2401,5 @@ rule src_end    = ";end"
 
 ;rule compiler %A,%B = "["]%/ca65["] ["]%A.asm["] -o:["]%A.o["] -x -l:["]%A.lst["]"
 rule compiler %A,%B = "ca65 ["]%A.asm["] -t c64 -l ["]%A.lst["] -o["]%A.o["]" "ld65 -o["]%A.%B["] -C c64.cfg -vm -m ["]%A.map["] --dbgfile ["]%A.deb["]   ["]%A.o["]"
+
+

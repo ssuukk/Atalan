@@ -314,15 +314,33 @@ out SDLSTL@$230:adr
 
 ;dli is type of procedure used to implement the DLI.
 
-dli:type = interrupt
-out NMIEN@$D40E:byte
-out VDSLST@$200:adr of dli
+rasterProc:type = interrupt
+out VNMI@$314:adr of rasterProc
 
-;There must be special rules to generate DLI routines.
+rule proc %A:rasterProc = 
+  "%A .proc" 
+  "   pha" 
+  "   txa" 
+  "   pha" 
+  "   tya" 
+  "   pha"
+  
+rule return %A:rasterProc = 
+  "   asl $d019" 
+  "   jmp $ea31"
+  
+rule endproc %A:rasterProc = 
+  ".endp"
 
-rule proc %A:dli = "%A .proc" "   pha" "   txa" "   pha" "   tya" "   pha"
+onRaster: macro line:int x:adr of rasterProc = "    lda #%1111111" "    sta $dc0d" "    lda line" "    sta $d012" "    lda #<x" "    sta $0314" "    lda #>x" "    sta $0315" "    lda 1" "    sta $d01a"
+
+rule proc %A:dli = 
+  "%A .proc" 
+  "   pha" 
+  "   txa" "   pha" "   tya" "   pha"
 rule return %A:dli = "   pla" "   tay" "   pla" "   tax" "   pla" "   rti"
 rule endproc %A:dli = ".endp"
+
 
 on'dli:macro x:adr of dli =
 	VDSLST = x

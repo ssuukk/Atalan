@@ -29,39 +29,24 @@ system.buf@$7e8:adr ; for bcd translation
 ;VARHEAP defines memory area that can be used by Atalan to allocate variables.
 ;this area memory is used mainly by BASIC, so it is safe to use
 type VARHEAP:3..143
-
-Color: enum
- black
- white
- red
- cyan
- purple
- green
- blue
- yellow
- orange
- brown
- lightred
- garkgrey
- grey
- lightgreen
- lightblue
- lightgrey
-
-type Device:0..30
-const keyboardD = 0
-const datasetteD = 1
-const rs232D = 2
-const screenD = 3
-const printer1D = 4
-const printer2D = 5
-const plotter1D = 6
-const plotter2D = 7
-const floppy8D = 8
-const floppy9D = 9
-const floppy10D = 10
-const floppy11D = 11
-const floppy12D = 12
+ 
+type Device: enum
+ keyboard : 0
+ tape : 1
+ rs232 : 2
+ screen : 3
+ prt1 : 4
+ prt2 : 5
+ prt3 : 6
+ prt4 : 7
+ fd8 : 8
+ fd9 : 9
+ fd10 : 10
+ fd11 : 11
+ fd12 : 12
+ 
+; taki myk - dobre dla flag! 
+;type dma'type:byte (narrow_playfield: 1, playfield: 2, wide_playfield: 3, missiles: 4, players: 8, hires_sprites: 16, dl: 32, off: 0)
  
 type RowType:0..24
 type ColType:0..39
@@ -70,9 +55,6 @@ type FileNameLen:0..15
 in out screenMemory@1024:array(ColType,RowType) of byte 
 in out keyboardBuffer@631:array(0..9) of byte
 in out keyboardBufferSize@198:byte
-
-in out borderColor @53280:byte
-in out backgroundColor @53281:byte
 
 in out secondaryFileAddress @$b9:byte
 
@@ -117,18 +99,186 @@ KSetTim@$ffbd:proc t1:byte@cpu.a t2:byte@cpu.x t3:byte@cpu.y
 KClAll@$ffe7: proc                                                @cpu.a @cpu.x
 KSetCursor:   proc x:ColType@CPU.x y:RowType@CPU.y                @cpu.c
 
-disableIrq: proc
-enableIrq: proc
-disableTimerAIrq: proc
-enableRasterIrq: proc
-disableRasterIrq: proc
-screenMode24: proc
-screenMode25: proc
-ackRasterIrq: proc
+;********************************
+; VIC
+;********************************
+; w atari dziala tez bez (
+type Color: enum (
+ black
+ white
+ red
+ cyan
+ purple
+ green
+ blue
+ yellow
+ orange
+ brown
+ lightred
+ garkgrey
+ grey
+ lightgreen
+ lightblue
+ lightgrey)
 
-in out irqReg@$dc0d:byte
-in out irqVector@$314:adr
-in out vicScrCtrlReg1@$d011:byte
-in out vicRasterLine@$d012:byte
-in out vicCtrlReg@$d01a:byte
+type Sprite:0..7
+
+vicAdr@$d000:adr
+
+vic:scope =
+	in out sprite1X@$d000:array(0..15) of byte
+	in out sprite1Y@$d001:array(0..15) of byte
+	in out spritesHX@$d010:byte
+	in out scrCtrlReg1@$d011:byte
+	in out rasterLine@$d012:byte
+	in out spriteOnOff@$d015:byte
+	in spriteTall@$d017:byte
+	in out irqStateReg@$d019:byte
+	in borderColor @$d020:Color
+	in backgroundColor @$d021:Color
+	in out irqCtrlReg@$d01a:byte
+	in spriteFat@$d01d:byte
+	in spriteColor@$d027:array(Sprite) of Color
+
+	setSpriteX:macro sprite:Sprite,x:int =
+		if x > 255 then spritesHX$sprite = 1 else spritesXH$sprite = 0
+		ind = sprite*2	  
+		vic.sprite1X#ind = lo x
+	
+	setSpriteY:macro sprite:Sprite,y:int =
+		ind = sprite*2
+		vic.sprite1Y#ind = y
+	
+	spriteUp:macro sprite:Sprite =
+		ind = sprite*2
+		; qus dec = segfault
+		;dec vic.sprite1Y#ind
+
+	spriteDown:macro sprite:Sprite =
+		ind = sprite*2
+		inc vic.sprite1Y#ind
+
+	spriteRight:macro sprite:Sprite =
+		ind = sprite*2
+		inc vic.sprite1X#ind
+
+	enableSprite:macro sprite:Sprite,enabled:bool =
+		vic.spriteOnOff$sprite = enabled
+
+;********************************
+; CIA 1
+;********************************
+
+cia1:scope =
+        in out portA@$dc00:byte
+        in out portB@$dc01:byte
+        in out irqControlReg@$dc0d:byte
+
+	  
+;********************************
+; I/O
+;********************************
+Joy1:scope =
+	isUp:macro =
+		if cia1.portB$0 = 1 then
+	isDown:macro =
+		cia1.portB$1 = 1
+	isLeft:macro =
+		cia1.portB$2 = 1
+	isRight:macro =
+		cia1.portB$3 = 1
+	isFire:macro =
+		cia1.portB$4 = 1
+
+Joy2:scope =
+	isUp:macro =
+		cia1.portA$0 = 1
+	isDown:macro =
+		cia1.portA$1 = 1
+	isLeft:macro =
+		cia1.portA$2 = 1
+	isRight:macro =
+		cia1.portA$3 = 1
+	isFire:macro =
+		cia1.portA$4 = 1
+		
+Joystick: enum
+ up : 1
+ down : 2
+ left : 4
+ right : 8
+ fire : 16
+	
+;********************************
+; IRQ procedures
+;********************************
+
+;
+; create atalan backend rules since we can't create assembler by macros
+;
+
+;in out irqTest @$314:adr
+
+;enableRasterInts:proc line:int paddress:adr of IrqProc
+;	cia1.irqControlReg = %01111111
+	;  "    and vic.scrCtrlReg1"
+	;  "    sta vic.scrCtrlReg1"
+;	;vic.rasterLine = line
+;	irqTest = paddress
+;	vic.irqCtrlReg = 1
+
+;enableNormalInts:proc x:adr of IrqProc = 
+;  "    sei"
+;       cpu.i = 1
+;	cia1.irqControlReg = 255
+;	vectors.irq = x
+;       cpi.i = 0
+;  "    cli"
+  
+; MACRO - finish interrupt routine by continue to KERNAL
+
+kernal = $ea31
+
+backToKernal:macro =
+	goto kernal
+	
+;
+; create raster procedure type
+; 
+;IrqProc:type = interrupt
+
+;rule proc %A:IrqProc = "%A .proc"
+  
+;rule return %A:IrqProc = "   asl vic.irqStateReg" "   jmp $ea31"
+
+;rule endproc %A:IrqProc = ".endp"
+  
+;enableOnRasterY: macro line:int x:adr of IrqProc = 
+;	c64'enableRasterInts line x
+	
+;doOnRasterY:macro line:int x:adr of IrqProc =
+;	vectors.irq = x
+;	vic.rasterLine = line
+
+;doOnIrq: macro x:adr of IrqProc =
+;	enableNormalInts x
+	
+;
+; create NMI procedure type
+; 
+;NmiProc:type = interrupt
+
+;rule proc %A:NmiProc = "%A .proc" "   pha" "   txa"  "   pha" "   tya" "   pha"
+  
+;rule return %A:NmiProc = "   pla" "   tay" "   pla" "   tax" "   pla" "   rti"
+  
+;rule endproc %A:NmiProc = ".endp"
+
+;********************************
+; Various vectors
+;********************************
+;Vectors:scope =
+;        in out irq@$314:adr of IrqProc
+;        in out brk@$316:adr
+;        in out nmi@$318:adr of NmiProc
 
