@@ -57,6 +57,8 @@ interruptControlRegister$2 = 0 ; clear bit 2 of some register
 
 - Added I flag to 6502 to be able to SEI/CLI by doing `@CPU.i=1`
 
+- 6502 code moved (partially) from MADS to ca65 which seems to be a standard assembler/compiler for the architecture
+
 # Bugs
 
 Following things are broken in Atalan compiler:
