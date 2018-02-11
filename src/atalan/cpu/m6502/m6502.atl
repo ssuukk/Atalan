@@ -362,12 +362,12 @@ rule let_adr %D:adr, %A:arr_of_arr(%B:byte) = instr
 	sta %D$1
 
 ; qus
-rule let_adr %A:byte1arr(%B:byte),%C:byte = instr
-	nop
-	lda %B
-	sta 69
-	nop
-	; nieznana instrukcja let_adr array,d
+;rule let_adr %A:byte1arr(%B:byte),%C:byte = instr
+;	nop
+;	lda %B
+;	sta 69
+;	nop
+;	; nieznana instrukcja let_adr array,d
 
 	 
 ;======= array(0..255) of array(0..127) of byte2
@@ -825,9 +825,11 @@ rule add %A:long,%A,1 = instr
 
 ;*********** Sub
 
-rule sub %A:byte1arr(%B), %A(%B), 1 = instr
-	sub %A$%B, %A$%B, 1
 
+
+;below rule causes cyclic dependency for sub adr,adr,1 and segfault
+;rule sub %A:byte1arr(%B), %A(%B), 1 = instr
+;	sub %A$%B, %A$%B, 1
 rule sub %A:byte1, %B:byte1, 1 = instr
 	let a, %B
 	let %A, a
@@ -861,7 +863,8 @@ rule sub %A:int, %B:byte, %C:byte = instr
 	lda 0
 	sbc 0
 	sta %A$1
-	
+
+;podejrzany	
 rule sub %A:card, %B:card, const %C:card = instr
 	let a, %B$0
 	lo %Z, %C           ; %Z is macro local variable
@@ -1638,7 +1641,7 @@ rule ifeq %L,%B:sbyte,%C:sbyte   = instr
 rule ifeq %L,%B:sbyte,%C:byte   = instr
   let a, %B
   ifeq _loc, n, 1
-	sub cznv, a, %C
+  sub cznv, a, %C
   ifeq %L, z, 1 	 
   label _loc
   
@@ -1646,7 +1649,7 @@ rule ifeq %L,%B:sbyte,%C:byte   = instr
 rule ifeq %L,%B:byte,%C:sbyte   = instr
   let a, %C
   ifeq _loc, n, 1
-	sub cznv, a, %B
+  sub cznv, a, %B
   ifeq %L, z, 1 	 
   label _loc
 
@@ -1671,14 +1674,14 @@ rule ifne %L,%A:sbyte,%B:sbyte   = instr
 rule ifne %L,%A:sbyte,%B:byte   = instr
   let a, %A
   ifeq %L, n, 1
-	sub cznv, a, %B
+  sub cznv, a, %B
   ifne %L, z, 1 	 
   
 ;if u8 <> s8
 rule ifne %L,%A:byte,%B:sbyte   = instr
   let a, %B
   ifeq %L, n, 1
-	sub cznv, a, %A
+  sub cznv, a, %A
   ifne %L, z, 1
 
 ;u8 <= u8
@@ -2339,9 +2342,9 @@ rule vardef %A,%B   = "%A = %B"
 rule vardef %A,%B(%C..%D) = "%A = %B+%C*%B.elemsize"
 
 rule label %A   = "%A:"
-rule proc %A:proc     = "%A .proc"
+rule proc %A:proc     = ".proc %A"
 rule return %A:proc() #6 = "   rts"
-rule endproc %A:proc  = ".endp"
+rule endproc %A:proc  = ".endproc"
 rule call %A:proc()  #6 = "   jsr %A"
 rule call %A:adr  #14     = "   jsr *+6" "   jmp *+6" "   jmp (%A)"
 
@@ -2401,5 +2404,3 @@ rule src_end    = ";end"
 
 ;rule compiler %A,%B = "["]%/ca65["] ["]%A.asm["] -o:["]%A.o["] -x -l:["]%A.lst["]"
 rule compiler %A,%B = "ca65 ["]%A.asm["] -t c64 -l ["]%A.lst["] -o["]%A.o["]" "ld65 -o["]%A.%B["] -C c64.cfg -vm -m ["]%A.map["] --dbgfile ["]%A.deb["]   ["]%A.o["]"
-
-

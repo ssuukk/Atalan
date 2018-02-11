@@ -25,10 +25,17 @@ BIN_EXTENSION: "prg"
 system.putchr_proc_adr@$c3:adr
 system.buf@$7e8:adr ; for bcd translation
 
-
 ;VARHEAP defines memory area that can be used by Atalan to allocate variables.
 ;this area memory is used mainly by BASIC, so it is safe to use
 type VARHEAP:3..143
+
+;********************************
+; Various vectors                
+;********************************
+Vectors:scope =                  
+        in out irq@$314:adr      
+        in out brk@$316:adr      
+        in out nmi@$318:adr      
  
 type Device: enum
  keyboard : 0
@@ -134,8 +141,8 @@ vic:scope =
 	in out spriteOnOff@$d015:byte
 	in spriteTall@$d017:byte
 	in out irqStateReg@$d019:byte
-	in borderColor @$d020:Color
-	in backgroundColor @$d021:Color
+	out borderColor @$d020:Color
+	out backgroundColor @$d021:Color
 	in out irqCtrlReg@$d01a:byte
 	in spriteFat@$d01d:byte
 	in spriteColor@$d027:array(Sprite) of Color
@@ -144,7 +151,7 @@ vic:scope =
 		if x > 255 then spritesHX$sprite = 1 else spritesXH$sprite = 0
 		ind = sprite*2	  
 		vic.sprite1X#ind = lo x
-	
+
 	setSpriteY:macro sprite:Sprite,y:int =
 		ind = sprite*2
 		vic.sprite1Y#ind = y
@@ -161,6 +168,12 @@ vic:scope =
 	spriteRight:macro sprite:Sprite =
 		ind = sprite*2
 		inc vic.sprite1X#ind
+
+	spriteLeft:macro sprite:Sprite =
+		ind = sprite*2
+		vic.sprite1X#ind = vic.sprite1X#ind - 1
+		; segfault - something in dec definition? stack overflow
+		;dec vic.sprite1X#ind
 
 	enableSprite:macro sprite:Sprite,enabled:bool =
 		vic.spriteOnOff$sprite = enabled
@@ -217,24 +230,16 @@ Joystick: enum
 ; create atalan backend rules since we can't create assembler by macros
 ;
 
-;in out irqTest @$314:adr
+IrqProc:type = interrupt
 
-;enableRasterInts:proc line:int paddress:adr of IrqProc
+;enableRasterInts:macro line:int paddress:adr of IrqProc
 ;	cia1.irqControlReg = %01111111
-	;  "    and vic.scrCtrlReg1"
-	;  "    sta vic.scrCtrlReg1"
-;	;vic.rasterLine = line
+;	"    and vic.scrCtrlReg1"
+;	"    sta vic.scrCtrlReg1"
+;	vic.rasterLine = line
 ;	irqTest = paddress
 ;	vic.irqCtrlReg = 1
 
-;enableNormalInts:proc x:adr of IrqProc = 
-;  "    sei"
-;       cpu.i = 1
-;	cia1.irqControlReg = 255
-;	vectors.irq = x
-;       cpi.i = 0
-;  "    cli"
-  
 ; MACRO - finish interrupt routine by continue to KERNAL
 
 kernal = $ea31
@@ -242,17 +247,26 @@ kernal = $ea31
 backToKernal:macro =
 	goto kernal
 	
-;
-; create raster procedure type
-; 
-;IrqProc:type = interrupt
-
-;rule proc %A:IrqProc = "%A .proc"
+rule proc %A:IrqProc = ".proc %A"
   
-;rule return %A:IrqProc = "   asl vic.irqStateReg" "   jmp $ea31"
+rule return %A:IrqProc = "   asl vic.irqStateReg" "   jmp $ea31"
 
-;rule endproc %A:IrqProc = ".endp"
-  
+rule endproc %A:IrqProc = ".endproc"
+
+enableIrqInts:macro x:adr of IrqProc =
+	ints@CPU.i
+	ints = 1
+	cia1.irqControlReg = 255
+	Vectors.irq = x
+	ints = 0
+
+enableRasterInts:macro line:int, paddress:adr of IrqProc =
+	cia1.irqControlReg = %01111111
+	vic.scrCtrlReg1 = %1111
+	vic.rasterLine = line
+	Vectors.irq = paddress
+	vic.irqCtrlReg =1
+
 ;enableOnRasterY: macro line:int x:adr of IrqProc = 
 ;	c64'enableRasterInts line x
 	
@@ -266,19 +280,10 @@ backToKernal:macro =
 ;
 ; create NMI procedure type
 ; 
-;NmiProc:type = interrupt
+NmiProc:type = interrupt
 
-;rule proc %A:NmiProc = "%A .proc" "   pha" "   txa"  "   pha" "   tya" "   pha"
+rule proc %A:NmiProc = ".proc %A" "   pha" "   txa"  "   pha" "   tya" "   pha"
   
-;rule return %A:NmiProc = "   pla" "   tay" "   pla" "   tax" "   pla" "   rti"
+rule return %A:NmiProc = "   pla" "   tay" "   pla" "   tax" "   pla" "   rti"
   
-;rule endproc %A:NmiProc = ".endp"
-
-;********************************
-; Various vectors
-;********************************
-;Vectors:scope =
-;        in out irq@$314:adr of IrqProc
-;        in out brk@$316:adr
-;        in out nmi@$318:adr of NmiProc
-
+rule endproc %A:NmiProc = ".endproc"

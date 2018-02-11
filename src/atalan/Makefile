@@ -29,7 +29,7 @@ OBJS= ../common/common.o \
 CC = gcc
 CXX = gcc
 
-CFLAGS = -g -Wall -D__$(SYSTEM_NAME)__ -D__$(SYSTEM_ARCH)__
+CFLAGS = -g -O0 -Wall -D__$(SYSTEM_NAME)__ -D__$(SYSTEM_ARCH)__
 ###### generic rules #######
 all:	atalan
 	@echo System name: $(SYSTEM_NAME)

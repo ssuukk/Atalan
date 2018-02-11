@@ -788,6 +788,9 @@ FILE * FindFile2(char * base_dir, char * name, char * ext)
 	if (f != NULL) {
 		strcpy(FILE_DIR, base_dir);
 	}
+	else {
+		//printf("Couldn't find file:%s\n",FILENAME);
+	}
 	return f;
 }
 

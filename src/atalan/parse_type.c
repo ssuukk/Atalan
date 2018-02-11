@@ -266,6 +266,7 @@ Type * ParseConstList(Type * type)
 
 			if (NextIs(TOKEN_COLON)) {
 				c = ParseIntConstExpression(type->owner);
+				//printf("Next token is colon\n");
 				if (TOK) {
 					IntModify(&last_n, c);
 				}
@@ -472,6 +473,7 @@ Input:
 	Bookmark bookmark;
 
 next:
+	//printf("ParseType3\n");
 	type = ParseType3();
 	if (!TOK) return NULL;
 

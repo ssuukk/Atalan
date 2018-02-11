@@ -104,6 +104,7 @@ Var * BufPop()
 {
 	Var * var;
 	TOP--;
+	//printf("Top po zmniejszeniu:%d",TOP);
 	var = STACK[TOP];
 	return var;
 }

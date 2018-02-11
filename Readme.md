@@ -281,5 +281,9 @@ rule proc %A:IrqProc =
 ```
 This can be used to emit special procedures for i.e. interrupts. See Atari and Commodore 64 platforms.
 
+```
+test: IrqProc =
+	vic.spriteRigt 0
+
 ## const
 Not working? Not implemented? Changed syntax?

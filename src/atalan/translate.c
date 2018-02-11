@@ -10,6 +10,7 @@ Translate compiler instructions to processor instructions by applying rewriting 
 */
 
 #include "language.h"
+#include "stdio.h"
 
 GLOBAL Var * RULE_PROC;						// This procedure is used to represent macro used when translating rule
 GLOBAL Bool RULE_MATCH_BREAK;
@@ -18,6 +19,7 @@ GLOBAL Var * MACRO_ARG_VAR[MACRO_ARG_CNT];		// Set of variables representing mac
 GLOBAL Var * MACRO_ARG[MACRO_ARG_CNT];
 
 GLOBAL CompilerPhase MATCH_MODE;		// mode used to match rules (PHASE_TRANSLATE, PHASE_EMIT)
+
 
 GLOBAL Bool VERBOSE_NOW;
 
@@ -247,6 +249,7 @@ Purpose:
 	if (i->op != rule->op) return false;
 
 	EmptyRuleArgs();
+
 	MATCH_MODE = match_mode;
 
 	match = ArgMatch(&rule->arg[0], i->result, RULE_UNDEFINED) 
@@ -471,6 +474,8 @@ Purpose:
 	rule = ruleset->rules[op];
 	if (op == INSTR_LINE) return rule;
 
+//	printf("RSFR;");
+
 	i.op = op; i.result = result; i.arg1 = arg1; i.arg2 = arg2;
 	for(; rule != NULL; rule = rule->next) {
 		if (RuleMatch(rule, &i, PHASE_TRANSLATE)) break;
@@ -491,8 +496,11 @@ Purpose:
 	rule = INSTR_RULES.rules[instr->op];
 	if (instr->op == INSTR_LINE) return rule;
 
+	int i = 0;
+
 	for(; rule != NULL; rule = rule->next) {
-		if (RuleMatch(rule, instr, PHASE_EMIT)) {		
+		CompilerPhase dummy = PHASE_EMIT;
+		if (RuleMatch(rule, instr, dummy)) {		
 			break;
 		}
 	}
@@ -518,6 +526,7 @@ Rule * TranslateRule(InstrOp op, Var * result, Var * arg1, Var * arg2)
 	i.result = result;
 	i.arg1 = arg1;
 	i.arg2 = arg2;
+
 	for(rule = TRANSLATE_RULES.rules[op]; rule != NULL; rule = rule->next) {
 		if (RuleMatch(rule, &i, PHASE_TRANSLATE)) {
 			return rule;
@@ -614,6 +623,7 @@ Bool InstrTranslate3(InstrOp op, Var * result, Var * arg1, Var * arg2, UInt8 mod
 	Var  tmp1,  tmp2,  tmp_r;
 	Bool has1, has2, has_r;
 	Type * result_type = NULL;
+
 
 	if (InstrTranslate2(op, result, arg1, arg2, mode)) return true;
 

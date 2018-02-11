@@ -770,7 +770,7 @@ void PrintVarVal(Var * var)
 			if (var->mode == INSTR_RANGE) {
 				PrintVarVal(var->adr); Print(".."); PrintVarVal(var->var);
 			} else if (var->mode == INSTR_TUPLE) {
-				Print("(");
+				Print("tuple(");
 				PrintVarVal(var->adr);
 				Print(",");
 				PrintVarVal(var->var);
@@ -780,7 +780,7 @@ void PrintVarVal(Var * var)
 			} else if (var->mode == INSTR_TEXT) {
 				Print("'"); Print(var->str); Print("'");
 			} else {
-				Print("(");
+				Print("unkn(");
 				PrintVarVal(var->adr);
 				oc = PrintColor(GREEN+BLUE);
 				Print(INSTR_INFO[var->mode].symbol);

@@ -26,6 +26,8 @@ GLOBAL Var   ROOT_PROC;
 
 RuleSet GEN_RULES;
 
+int cyclicDep;
+
 
 void GenSetDestination(InstrBlock * blk, Instr * i)
 /*
@@ -148,6 +150,8 @@ Purpose:
 {
 	Rule * rule;
 	GenLine();
+
+	//printf("=====Gen -> RuleSetFindRule;");
 
 	rule = RuleSetFindRule(&GEN_RULES, op, result, arg1, arg2);
 	if (rule == NULL) {
@@ -415,6 +419,7 @@ Argument:
 				}
 			} else {
 				if (PHASE == PHASE_TRANSLATE) {
+       //printf("=====Gen -> InstrTranslate3;");
 					if (!InstrTranslate3(op, result, arg1, arg2, 0)) {
 						SyntaxError("Translation for instruction not found");
 					}
