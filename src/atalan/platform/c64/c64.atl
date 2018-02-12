@@ -33,39 +33,216 @@ type VARHEAP:3..143
 ; Various vectors                
 ;********************************
 Vectors:scope =                  
-        in out irq@$314:adr      
-        in out brk@$316:adr      
-        in out nmi@$318:adr      
- 
+	in out irq@$314:adr      
+	in out brk@$316:adr      
+	in out nmi@$318:adr
+	in out open@$31A:adr
+	in out close@$31C:adr
+	chkin@$31E:adr
+	; there are more. Add here.
+
+;********************************
+; Useful types
+;********************************		
 type Device: enum
- keyboard : 0
- tape : 1
- rs232 : 2
- screen : 3
- prt1 : 4
- prt2 : 5
- prt3 : 6
- prt4 : 7
- fd8 : 8
- fd9 : 9
- fd10 : 10
- fd11 : 11
- fd12 : 12
+	kbd : 0
+	tap : 1
+	rs  : 2
+	scr : 3
+	pr1 : 4
+	pr2 : 5
+	pr3 : 6
+	pr4 : 7
+	fd8 : 8
+	fd9 : 9
+	fd10 : 10
+	fd11 : 11
+	fd12 : 12
  
-; taki myk - dobre dla flag! 
-;type dma'type:byte (narrow_playfield: 1, playfield: 2, wide_playfield: 3, missiles: 4, players: 8, hires_sprites: 16, dl: 32, off: 0)
+type Color: enum 
+	black
+	white
+	red
+	cyan
+	purple
+	green
+	blue
+	yellow
+	orange
+	brown
+	lightred
+	garkgrey
+	grey
+	lightgreen
+	lightblue
+	lightgrey
  
+type Sprite:0..7
+
 type RowType:0..24
 type ColType:0..39
 type FileNameLen:0..15
 
+; Another way to define types - what's the difference?
+;type dma'type:byte (narrow_playfield: 1, playfield: 2, wide_playfield: 3, missiles: 4, players: 8, hires_sprites: 16, dl: 32, off: 0)
+ 
+;********************************
+; System Arrays
+;********************************
 in out screenMemory@1024:array(ColType,RowType) of byte 
 in out keyboardBuffer@631:array(0..9) of byte
-in out keyboardBufferSize@198:byte
 
-in out secondaryFileAddress @$b9:byte
+;********************************
+; Zeropage
+;********************************
+ZP:scope = 
+	in out fileStatus @$90:byte
+	in out secondaryFileAddress @$b9:byte
+	in keyboardBufferSize@$c6:byte
 
-in out fileStatus @$90:byte
+;********************************
+; VIC
+;********************************
+Vic:scope =
+	in out spriteX@$d000:array(Sprite) of byte
+	in out spriteY@$d001:array(Sprite) of byte
+
+	in out sprite1X@$d000:byte
+	in out sprite1Y@$d001:byte
+
+	in out spriteXH@$d010:byte
+	in out scrCtrlReg1@$d011:byte ; 0-2 scroll, 3 24/25, 4 screen off, 5 text/bitmap, 6 extbkg, 7 raser Hi
+	in out rasterLine@$d012:byte
+	in out spriteOnOff@$d015:byte
+	in out scrCtrlReg2@$d016:byte ; 0-2 h scroll, 3 38/40, 4 multicolor
+	in out spriteTall@$d017:byte
+	in out irqStateReg@$d019:byte ; irq status/ack
+	in out irqCtrlReg@$d01a:byte ; 0 raster, 1 sprite/bkg coll, 2 sprite/sprite coll, 3 - lightpen
+	spriteWide@$d01d:byte
+	borderColor @$d020:Color
+	backgroundColor @$d021:Color
+	spriteColor@$d027:array(Sprite) of Color
+
+	setSpriteVisible:macro sprite:Sprite,enabled:bool =
+		vic.spriteOnOff$sprite = enabled
+
+	setSpriteTall:macro sprite:Sprite,tall:bool =
+		vic.spriteTall$sprite = tall
+		
+	setSpriteWide:macro sprite:Sprite,wide:bool =
+		vic.spriteWide$sprite = wide
+	
+	setSpriteColor:macro sprite:Sprite,col:Color =
+		vic(sprite).spriteColor = col
+	
+	setSprite0X:macro x:card =
+		vic(0).spriteX = lo x
+		if x > 255 then spriteXH$0 = 1 else spritesXH$0 = 0
+	setSprite1X:macro x:card =
+		vic(2).spriteX = lo x
+		if x > 255 then spriteXH$1 = 1 else spritesXH$1 = 0
+	setSprite2X:macro x:card =
+		vic(4).spriteX = lo x
+		if x > 255 then spriteXH$2 = 1 else spritesXH$2 = 0
+	setSprite3X:macro x:card =
+		vic(6).spriteX = lo x
+		if x > 255 then spriteXH$3 = 1 else spritesXH$3 = 0
+	setSprite4X:macro x:card =
+		vic(8).spriteX = lo x
+		if x > 255 then spriteXH$4 = 1 else spritesXH$4 = 0
+	setSprite5X:macro x:card =
+		vic(10).spriteX = lo x
+		if x > 255 then spriteXH$5 = 1 else spritesXH$5 = 0
+	setSprite6X:macro x:card =
+		vic(12).spriteX = lo x
+		if x > 255 then spriteXH$6 = 1 else spritesXH$6 = 0
+	setSprite7X:macro x:card =
+		vic(14).spriteX = lo x
+		if x > 255 then spriteXH$7 = 1 else spritesXH$7 = 0
+
+	setSprite0Y:macro y:byte =
+		vic(0).spriteY = y
+	setSprite1Y:macro y:byte =
+		vic(2).spriteY = y
+	setSprite2Y:macro y:byte =
+		vic(4).spriteY = y
+	setSprite3Y:macro y:byte =
+		vic(6).spriteY = y
+	setSprite4Y:macro y:byte =
+		vic(8).spriteY = y
+	setSprite5Y:macro y:byte =
+		vic(10).spriteY = y
+	setSprite6Y:macro y:byte =
+		vic(12).spriteY = y
+	setSprite7Y:macro y:byte =
+		vic(14).spriteY = y
+						
+	moveSprite0Y:macro delta:sbyte =
+		vic(0).spriteY = vic(1).spriteY + delta
+
+	moveSprite0X:macro delta:sbyte =
+		vic(0).spriteX = vic(0).spriteX + delta
+
+	; sprity mają pointery pod: ekran + 1016 do +7
+	; w nich zapisane są adresy spriteów /64
+	
+;********************************
+; CIA 1
+;********************************
+Joystick: enum
+	up : 1
+	down : 2
+	left : 4
+	right : 8
+	fire : 16
+
+Cia1:scope =
+	in out portA@$dc00:byte
+	in out portB@$dc01:byte
+	in out irqControlReg@$dc0d:byte
+
+Cia2:scope =
+	in out irqControlReg@$dd0d:byte
+;********************************
+; IRQ procedures
+;********************************
+IrqProc:type = interrupt
+
+rule proc %A:IrqProc = ".proc %A"
+  
+rule return %A:IrqProc = "   asl vic.irqStateReg" "   jmp $ea31"
+
+rule endproc %A:IrqProc = ".endproc"
+
+onIrqDo:macro procAddress:adr of IrqProc =
+	blockIrqFlag@CPU.i
+	blockIrqFlag = 1
+	Cia1.irqControlReg = 255
+	Vectors.irq = procAddress
+	blockIrqFlag = 0
+
+onRasterLineDo:macro rasterLine:card, procAddress:adr of IrqProc =
+	Cia1.irqControlReg = $7f
+	Cia2.irqControlReg = $7f
+	Vic.scrCtrlReg1 = %1111
+	Vic.rasterLine = lo rasterLine
+	if rasterLine > 255 Vic.scrCtrlReg1$7 = 1 else Vic.scrCtrlReg1$7 = 0
+	Vectors.irq = procAddress
+	Vic.irqCtrlReg = 1
+
+;********************************
+; NMI procedures
+;********************************
+NmiProc:type = interrupt
+
+rule proc %A:NmiProc = ".proc %A" "   pha" "   txa"  "   pha" "   tya" "   pha"
+  
+rule return %A:NmiProc = "   pla" "   tay" "   pla" "   tax" "   pla" "   rti"
+  
+rule endproc %A:NmiProc = ".endproc"
+
+onNmiDo:macro procAddress:adr of NmiProc =
+	Vectors.nmi = procAddress
 
 ;********************************
 ; KERNAL FUNCTIONS
@@ -81,6 +258,7 @@ KReadSt@$ffb7:proc                 -> st@cpu.a                                  
 KLoad@$ffd5:  proc lv:byte@cpu.a startAddr@(CPU.x,CPU.y):adr     -> state@cpu.c error@cpu.a lastByte@(cpu.x,cpu.y):adr  @cpu.a @cpu.x @cpu.y
 ; startAddr - zero page address of pointer
 KSave@$ffd8:  proc startAddr:byte@cpu.a endAddr@(CPU.x,CPU.y):adr-> state@cpu.c error@cpu.a                             @cpu.a @cpu.x @cpu.y
+
 ;********************************
 ; KERNAL PROCEDURES
 ;********************************
@@ -105,185 +283,3 @@ KChrOut@$ffd2:proc c:char@cpu.a
 KSetTim@$ffbd:proc t1:byte@cpu.a t2:byte@cpu.x t3:byte@cpu.y
 KClAll@$ffe7: proc                                                @cpu.a @cpu.x
 KSetCursor:   proc x:ColType@CPU.x y:RowType@CPU.y                @cpu.c
-
-;********************************
-; VIC
-;********************************
-; w atari dziala tez bez (
-type Color: enum (
- black
- white
- red
- cyan
- purple
- green
- blue
- yellow
- orange
- brown
- lightred
- garkgrey
- grey
- lightgreen
- lightblue
- lightgrey)
-
-type Sprite:0..7
-
-vicAdr@$d000:adr
-
-vic:scope =
-	in out sprite1X@$d000:array(0..15) of byte
-	in out sprite1Y@$d001:array(0..15) of byte
-	in out spritesHX@$d010:byte
-	in out scrCtrlReg1@$d011:byte
-	in out rasterLine@$d012:byte
-	in out spriteOnOff@$d015:byte
-	in spriteTall@$d017:byte
-	in out irqStateReg@$d019:byte
-	out borderColor @$d020:Color
-	out backgroundColor @$d021:Color
-	in out irqCtrlReg@$d01a:byte
-	in spriteFat@$d01d:byte
-	in spriteColor@$d027:array(Sprite) of Color
-
-	setSpriteX:macro sprite:Sprite,x:int =
-		if x > 255 then spritesHX$sprite = 1 else spritesXH$sprite = 0
-		ind = sprite*2	  
-		vic.sprite1X#ind = lo x
-
-	setSpriteY:macro sprite:Sprite,y:int =
-		ind = sprite*2
-		vic.sprite1Y#ind = y
-	
-	spriteUp:macro sprite:Sprite =
-		ind = sprite*2
-		; qus dec = segfault
-		;dec vic.sprite1Y#ind
-
-	spriteDown:macro sprite:Sprite =
-		ind = sprite*2
-		inc vic.sprite1Y#ind
-
-	spriteRight:macro sprite:Sprite =
-		ind = sprite*2
-		inc vic.sprite1X#ind
-
-	spriteLeft:macro sprite:Sprite =
-		ind = sprite*2
-		vic.sprite1X#ind = vic.sprite1X#ind - 1
-		; segfault - something in dec definition? stack overflow
-		;dec vic.sprite1X#ind
-
-	enableSprite:macro sprite:Sprite,enabled:bool =
-		vic.spriteOnOff$sprite = enabled
-
-;********************************
-; CIA 1
-;********************************
-
-cia1:scope =
-        in out portA@$dc00:byte
-        in out portB@$dc01:byte
-        in out irqControlReg@$dc0d:byte
-
-	  
-;********************************
-; I/O
-;********************************
-Joy1:scope =
-	isUp:macro =
-		if cia1.portB$0 = 1 then
-	isDown:macro =
-		cia1.portB$1 = 1
-	isLeft:macro =
-		cia1.portB$2 = 1
-	isRight:macro =
-		cia1.portB$3 = 1
-	isFire:macro =
-		cia1.portB$4 = 1
-
-Joy2:scope =
-	isUp:macro =
-		cia1.portA$0 = 1
-	isDown:macro =
-		cia1.portA$1 = 1
-	isLeft:macro =
-		cia1.portA$2 = 1
-	isRight:macro =
-		cia1.portA$3 = 1
-	isFire:macro =
-		cia1.portA$4 = 1
-		
-Joystick: enum
- up : 1
- down : 2
- left : 4
- right : 8
- fire : 16
-	
-;********************************
-; IRQ procedures
-;********************************
-
-;
-; create atalan backend rules since we can't create assembler by macros
-;
-
-IrqProc:type = interrupt
-
-;enableRasterInts:macro line:int paddress:adr of IrqProc
-;	cia1.irqControlReg = %01111111
-;	"    and vic.scrCtrlReg1"
-;	"    sta vic.scrCtrlReg1"
-;	vic.rasterLine = line
-;	irqTest = paddress
-;	vic.irqCtrlReg = 1
-
-; MACRO - finish interrupt routine by continue to KERNAL
-
-kernal = $ea31
-
-backToKernal:macro =
-	goto kernal
-	
-rule proc %A:IrqProc = ".proc %A"
-  
-rule return %A:IrqProc = "   asl vic.irqStateReg" "   jmp $ea31"
-
-rule endproc %A:IrqProc = ".endproc"
-
-enableIrqInts:macro x:adr of IrqProc =
-	ints@CPU.i
-	ints = 1
-	cia1.irqControlReg = 255
-	Vectors.irq = x
-	ints = 0
-
-enableRasterInts:macro line:int, paddress:adr of IrqProc =
-	cia1.irqControlReg = %01111111
-	vic.scrCtrlReg1 = %1111
-	vic.rasterLine = line
-	Vectors.irq = paddress
-	vic.irqCtrlReg =1
-
-;enableOnRasterY: macro line:int x:adr of IrqProc = 
-;	c64'enableRasterInts line x
-	
-;doOnRasterY:macro line:int x:adr of IrqProc =
-;	vectors.irq = x
-;	vic.rasterLine = line
-
-;doOnIrq: macro x:adr of IrqProc =
-;	enableNormalInts x
-	
-;
-; create NMI procedure type
-; 
-NmiProc:type = interrupt
-
-rule proc %A:NmiProc = ".proc %A" "   pha" "   txa"  "   pha" "   tya" "   pha"
-  
-rule return %A:NmiProc = "   pla" "   tay" "   pla" "   tax" "   pla" "   rti"
-  
-rule endproc %A:NmiProc = ".endproc"

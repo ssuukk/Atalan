@@ -361,15 +361,6 @@ rule let_adr %D:adr, %A:arr_of_arr(%B:byte) = instr
 	lda %A.index_hi$y
 	sta %D$1
 
-; qus
-;rule let_adr %A:byte1arr(%B:byte),%C:byte = instr
-;	nop
-;	lda %B
-;	sta 69
-;	nop
-;	; nieznana instrukcja let_adr array,d
-
-	 
 ;======= array(0..255) of array(0..127) of byte2
 
 type arr_of_arr2:array(0..255) of array(0..127) of byte2
@@ -2149,23 +2140,23 @@ rule let a,y @zn   #2  = "   tya"
 
 ; bit operations qus
 
-rule let %A$0, 1 @z #4 = "    lda #1" "    ora %A"
-rule let %A$1, 1 @z #4 = "    lda #2" "    ora %A"
-rule let %A$2, 1 @z #4 = "    lda #4" "    ora %A"
-rule let %A$3, 1 @z #4 = "    lda #8" "    ora %A"
-rule let %A$4, 1 @z #4 = "    lda #16" "    ora %A"
-rule let %A$5, 1 @z #4 = "    lda #32" "    ora %A"
-rule let %A$6, 1 @z #4 = "    lda #64" "    ora %A"
-rule let %A$8, 1 @z #4 = "    lda #128" "    ora %A"
+rule let %A$0, 1 @z #4 = "   lda #1" "   ora %A"
+rule let %A$1, 1 @z #4 = "   lda #2" "   ora %A"
+rule let %A$2, 1 @z #4 = "   lda #4" "   ora %A"
+rule let %A$3, 1 @z #4 = "   lda #8" "   ora %A"
+rule let %A$4, 1 @z #4 = "   lda #16" "   ora %A"
+rule let %A$5, 1 @z #4 = "   lda #32" "   ora %A"
+rule let %A$6, 1 @z #4 = "   lda #64" "   ora %A"
+rule let %A$8, 1 @z #4 = "   lda #128" "   ora %A"
 
-rule let %A$0, 0 @z #4 = "    lda #254" "    and %A"
-rule let %A$1, 0 @z #4 = "    lda #253" "    and %A"
-rule let %A$2, 0 @z #4 = "    lda #251" "    and %A"
-rule let %A$3, 0 @z #4 = "    lda #247" "    and %A"
-rule let %A$4, 0 @z #4 = "    lda #239" "    and %A"
-rule let %A$5, 0 @z #4 = "    lda #223" "    and %A"
-rule let %A$6, 0 @z #4 = "    lda #191" "    and %A"
-rule let %A$8, 0 @z #4 = "    lda #127" "    and %A"
+rule let %A$0, 0 @z #4 = "   lda #254" "   and %A"
+rule let %A$1, 0 @z #4 = "   lda #253" "   and %A"
+rule let %A$2, 0 @z #4 = "   lda #251" "   and %A"
+rule let %A$3, 0 @z #4 = "   lda #247" "   and %A"
+rule let %A$4, 0 @z #4 = "   lda #239" "   and %A"
+rule let %A$5, 0 @z #4 = "   lda #223" "   and %A"
+rule let %A$6, 0 @z #4 = "   lda #191" "   and %A"
+rule let %A$8, 0 @z #4 = "   lda #127" "   and %A"
 
 
 ;LDX++

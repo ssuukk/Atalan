@@ -1,0 +1,51 @@
+﻿; przykladowy duszek to tablica 63 wartosci pod adresem 2049
+const exampleGhost:array =
+	%10000000,%00000000,%00000000,
+	%11000000,%00000000,%00000000,
+	%11100000,%00000000,%00000000,
+	%11110000,%00000000,%00000000,
+	%11111000,%00000000,%00000000,
+	%11111100,%00000000,%00000000,
+	%00111000,%00000000,%00000000,
+	%00111000,%00000000,%00000000,
+	%00011100,%00000000,%00000000,
+	%00011100,%00000000,%00000000,
+	%00000000,%00000000,%00000000,
+	%00000000,%00000000,%00000000,
+	%00000000,%00000000,%00000000,
+	%00000000,%00000000,%00000000,
+	%00000000,%00000000,%00000000,
+	%00000000,%00000000,%00000000,
+	%00000000,%00000000,%00000000,
+	%00000000,%00000000,%00000000,
+	%00000000,%00000000,%00000000,
+	%00000000,%00000000,%00000000,
+	%00000000,%00000000,%00000000,
+
+; wkazniki duszkow przy ekranie domyslnym sa pod adresem 2040
+in out spritePtr@2040:array(8) of byte
+
+; duszek 0 jest pod adresem 2049, ustawmy jego wskaznik na ten adres
+spritePtr#0 = 2049/64
+
+; ustawiamy wspolrzedne poczatkowe
+;Vic.setSprite0X 100
+Vic.setSprite0Y 100
+
+; wlaczamy go
+Vic.setSpriteVisible 0 true
+
+; procedura typu IrqProc, jedyny typ procedury wspolpracujacy z makrem onIrqDo
+ruchacz : IrqProc =
+	; w gore i w dol raczej na raz sie nie da! Przesunmy duszka w gore lub w dol
+	; sprawdzamy po prostu, czy bit odpowiadajacy wychyleniom jest zapalony
+	if Cia1.portB$0 = 1 then Vic.sprite1Y = Vic.sprite1Y - 1
+	else if Cia1.portB$1 =1 then Vic.sprite1Y = Vic.sprite1Y + 1
+
+	; w prawo i lewo tez...
+	if Cia1.portB$2 = 1then Vic.sprite1X = Vic.sprite1X -1
+	else if Cia1.portB$3 = 1 then Vic.sprite1X = Vic.sprite1X + 1
+	return
+
+; odpalamy nasz multitasking
+onIrqDo ruchacz

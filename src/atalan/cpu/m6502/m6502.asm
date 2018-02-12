@@ -75,8 +75,8 @@ _TL1 = $70	;four byte register ($70-$73) defined under name _TEMPL1 in mc6502.at
 ; 163     three byte
 ; 164     four byte
 
+.IFDEF system__putchr_proc_adr  
 .proc _std_print_adr
-
 		lda #<_adr_putchr
 		ldx #>_adr_putchr
 		clc
@@ -100,6 +100,7 @@ _TL1 = $70	;four byte register ($70-$73) defined under name _TEMPL1 in mc6502.at
 		
 		;... continue to _std_print
 .endproc
+
 		
 .proc _std_print	
 
@@ -290,7 +291,9 @@ _done:
 hex:    .byt "0123456789ABCDEF"
 
 .endproc
+.ENDIF
 
+.IFDEF		system__buf
 ;===================================================================
 .proc _std_bin_to_bcd
 ;Convert binary number to BCD. 
@@ -376,6 +379,7 @@ carry1:
 		rts
 
 .endproc
+.ENDIF
 ;==============================================================
 ;   Neg value in A
 
