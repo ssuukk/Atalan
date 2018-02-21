@@ -200,6 +200,63 @@ Constant is put on the right side of operation if possible
 
 Note: due to special meaning of `%` it is impossible to use it as binary literal symbol in assembler instructions. It will give a strange error.
 
+## Argument suffixes
+
+These may be used to extract metadata from variables.
+
+`%A.size`
+size of data held by A (i.e. length of string)
+ 
+`%A.count`
+For arrays: element count
+ 
+`%A.step`
+For arrays: single element size in bytes
+ 
+`%A.index.min`
+For arrays: minimal index
+ 
+`%A.index.max`
+For arrays: maximal index
+ 
+`%A.lo`
+A's lower byte
+ 
+`%A.hi`
+A's higher byte
+               
+`%A.idx`
+Unknown. Only occurence:
+ 
+```
+type arr_2b:array(byte) of card
+ 
+rule decl %A:arr_2b = instr
+                decl %A.lo:array(%A.idx) of byte
+                decl %A.hi:array(%A.idx) of byte
+```
+ 
+`%A.index_lo`
+`%A.index_hi`
+Unknown. Only occurence:
+ 
+```
+rule let_adr %D:adr, %A:arr_of_arr(%B:byte) = instr
+                ldy %B
+                lda %A.index_lo$y
+                sta %D$0
+                lda %A.index_hi$y
+                sta %D$1
+```
+ 
+`%A.elemsize or %A.item.size (VarByteSize(var);)`
+unknown. Only single use:
+ 
+```
+rule vardef %A,%B   = "%A = %B"
+rule vardef %A,%B(%C..%D) = "%A = %B+%C*%B.elemsize"
+```
+
 ### Macros
 
 A macro inlines code given by its body in processed source code. It supports both Atalan source code and backend `instr`uctions
